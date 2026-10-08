@@ -1,0 +1,5 @@
+logging:
+  level:
+    com.chengxu.futari: DEBUG
+    # MyBatis 参数日志可能包含 BCrypt 密码哈希，用户 Mapper 在开发环境也保持 INFO。
+    com.chengxu.futari.user.mapper: INFO

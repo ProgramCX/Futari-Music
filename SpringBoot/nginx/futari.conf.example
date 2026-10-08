@@ -1,0 +1,30 @@
+# 将 MUSIC_STORAGE_DIR 的绝对路径填入 alias，路径结尾必须是 /。
+server {
+    listen 8081;
+    server_name localhost;
+    # Spring 上传限制读取 FUTARI_UPLOAD_MAX_REQUEST_SIZE；修改该值时同步调整 Nginx 请求体上限。
+    client_max_body_size 80m;
+
+    location /protected-music/ {
+        internal;
+        alias /absolute/path/to/music-storage/;
+        types { image/jpeg jpg; image/png png; image/webp webp; }
+        default_type application/octet-stream;
+        add_header Cache-Control "private, no-store" always;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header X-Futari-Nginx "1";
+    }
+
+    location /ws {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}

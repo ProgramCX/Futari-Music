@@ -1,0 +1,54 @@
+# Local environment and secrets; keep configuration examples.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Uploaded music, artwork, lyrics and local runtime data.
+music-storage/
+
+# Maven output and local dependency cache.
+target/
+.m2/
+*.class
+
+# Qt / CMake build output and verification builds.
+build/
+/Qt/FutariMusic/build-*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+CMakeUserPresets.json
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.dll
+*.pdb
+
+# Local IDE configuration.
+.idea/
+.qtcreator/
+*.iml
+*.user
+*.user.*
+
+# Logs, temporary editor files and compiler captures.
+*.log
+/Qt/FutariMusic/compiler.stdout.txt
+/Qt/FutariMusic/compiler.stderr.txt
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS metadata.
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Source, docs, SQL, reference images and project .codex rules/skills remain tracked.
