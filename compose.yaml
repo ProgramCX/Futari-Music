@@ -1,0 +1,80 @@
+name: futari-music
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: futari
+      MYSQL_USER: ${DB_USER:-futari}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env file}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in the root .env file}
+      TZ: Asia/Shanghai
+    volumes:
+      - futari-mysql-data:/var/lib/mysql
+      - ./SpringBoot/sql/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the root .env file}
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - futari-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  server:
+    image: eclipse-temurin:17-jre-jammy
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["java", "-jar", "/app/futari.jar"]
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/futari?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      DB_USER: ${DB_USER:-futari}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env file}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the root .env file}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in the root .env file}
+      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-86400}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_NICKNAME: ${BOOTSTRAP_ADMIN_NICKNAME:-管理员}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      BOOTSTRAP_ADMIN_RESET_EXISTING: ${BOOTSTRAP_ADMIN_RESET_EXISTING:-false}
+      MUSIC_STORAGE_DIR: /data/music-storage
+      FUTARI_UPDATE_DIR: /data/updates
+      FUTARI_UPDATE_GITHUB_REPOSITORY: ${FUTARI_UPDATE_GITHUB_REPOSITORY:-ProgramCX/Futari-Music}
+      FUTARI_UPDATE_POLL_ENABLED: ${FUTARI_UPDATE_POLL_ENABLED:-true}
+      FUTARI_UPDATE_POLL_INTERVAL_MS: ${FUTARI_UPDATE_POLL_INTERVAL_MS:-600000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      FUTARI_UPLOAD_MAX_AUDIO_SIZE: ${FUTARI_UPLOAD_MAX_AUDIO_SIZE:-64MB}
+      FUTARI_UPLOAD_MAX_REQUEST_SIZE: ${FUTARI_UPLOAD_MAX_REQUEST_SIZE:-80MB}
+    ports:
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-8080}:8080"
+    volumes:
+      - ${FUTARI_JAR_PATH:-./build/futari-server.jar}:/app/futari.jar:ro
+      - futari-music-storage:/data/music-storage
+      - futari-updates:/data/updates
+
+volumes:
+  futari-mysql-data:
+  futari-redis-data:
+  futari-music-storage:
+  futari-updates:

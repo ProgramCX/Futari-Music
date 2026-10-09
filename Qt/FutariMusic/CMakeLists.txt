@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.21)
 project(FutariMusic VERSION 0.2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(FUTARI_CLIENT_VERSION "0.0.1-dev" CACHE STRING "Client version embedded in the executable")
+set(FUTARI_CLIENT_VERSION "0.0.1" CACHE STRING "Client version embedded in the executable")
 set(FUTARI_SERVER_COMPAT_VERSION "0.1.0" CACHE STRING "Server compatibility version embedded in the executable")
-set(FUTARI_WINDOWS_INSTALL_ARGUMENTS "/S" CACHE STRING "Silent installer arguments for Windows update EXE packages")
+set(FUTARI_WINDOWS_INSTALL_ARGUMENTS "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" CACHE STRING "Silent installer arguments for Windows update EXE packages")
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network WebSockets Widgets Svg)
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -127,3 +127,23 @@ target_link_libraries(appFutariMusic PRIVATE
     Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network
     Qt6::WebSockets Qt6::Widgets Qt6::Svg
 )
+
+if(UNIX AND NOT APPLE)
+    string(REPLACE "-" "~" FUTARI_DEBIAN_VERSION "${FUTARI_CLIENT_VERSION}")
+    set(CPACK_GENERATOR "DEB")
+    set(CPACK_PACKAGE_NAME "futari-music")
+    set(CPACK_PACKAGE_VENDOR "ProgramCX")
+    set(CPACK_PACKAGE_CONTACT "ProgramCX")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Futari Music Qt desktop client")
+    set(CPACK_PACKAGE_VERSION "${FUTARI_DEBIAN_VERSION}")
+    set(CPACK_PACKAGE_FILE_NAME "futari-music_${FUTARI_DEBIAN_VERSION}_amd64")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "ProgramCX")
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "sound")
+    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS
+        "qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-dialogs, qml6-module-qtquick-effects, qml6-module-qtquick-layouts, qml6-module-qtquick-window, qml6-module-qtmultimedia, qt6-qpa-plugins"
+    )
+    include(CPack)
+endif()

@@ -65,7 +65,7 @@ RowLayout {
             onTriggered: appController.addSongsToQueue(root.selectedIds)
         }
         FutariMenuItem {
-            visible: appController.roomState.room && appController.canControl
+            visible: !!appController.roomState.room && appController.canControl
             text: "本地播放队列"
             iconName: "queue"
             onTriggered: appController.addSongsToLocalQueue(root.selectedIds)
