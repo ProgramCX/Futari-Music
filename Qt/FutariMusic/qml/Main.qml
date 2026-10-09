@@ -25,32 +25,54 @@ ApplicationWindow {
     property var backStack: []
     property var forwardStack: []
     property bool toastOpensMessages: false
+    property bool roomClosePending: false
+    property bool skipRoomLeaveOnce: false
     Component.onCompleted: if (appController.authenticated) { width = 1320; height = 860 }
+    onClosing: function(close) {
+        if (window.skipRoomLeaveOnce) { window.skipRoomLeaveOnce = false; return }
+        if (window.roomClosePending) { close.accepted = false; return }
+        if (appController.roomState.room) {
+            close.accepted = false
+            window.roomClosePending = true
+            roomLeaveTimeout.start()
+            appController.leaveRoomBeforeClose()
+        }
+    }
+    function finishClosing() {
+        if (!window.roomClosePending) return
+        window.roomClosePending = false
+        window.skipRoomLeaveOnce = true
+        roomLeaveTimeout.stop()
+        window.close()
+    }
+    Timer { id: roomLeaveTimeout; interval: 3000; onTriggered: window.finishClosing() }
     function navigate(page) {
         if (!page || page === currentPage) return
         const back = backStack.slice(); back.push(currentPage)
         if (back.length > 80) back.shift()
-        backStack = back; forwardStack = []; currentPage = page
+        backStack = back; forwardStack = []; currentPage = page; queueVisible = false
     }
     function goBack() {
         if (backStack.length === 0) return
         const back = backStack.slice(); const page = back.pop()
         const forward = forwardStack.slice(); forward.push(currentPage)
-        backStack = back; forwardStack = forward; currentPage = page
+        backStack = back; forwardStack = forward; currentPage = page; queueVisible = false
     }
     function goForward() {
         if (forwardStack.length === 0) return
         const forward = forwardStack.slice(); const page = forward.pop()
         const back = backStack.slice(); back.push(currentPage)
-        backStack = back; forwardStack = forward; currentPage = page
+        backStack = back; forwardStack = forward; currentPage = page; queueVisible = false
     }
     function showMessages() { navigate("messages"); queueVisible = false; window.raise(); window.requestActivate() }
+    Shortcut { sequence: "Esc"; enabled: window.queueVisible; onActivated: window.queueVisible = false }
     Connections {
         target: appController
         function onSessionChanged() {
             if (appController.authenticated) { window.width = 1320; window.height = 860 }
-            else { window.width = 500; window.height = 740; window.currentPage = "library"; window.backStack = []; window.forwardStack = [] }
+            else { window.width = 500; window.height = 740; window.currentPage = "library"; window.backStack = []; window.forwardStack = []; window.queueVisible = false }
         }
+        function onRoomLeaveForCloseFinished() { window.finishClosing() }
         function onOpenMessagesRequested() { window.showMessages() }
         function onInvitationArrived(title, message) { window.toastOpensMessages = true; toastText.text = message; toast.open() }
         function onInfoMessage(message) { window.toastOpensMessages = false; toastText.text = message; toast.open() }
@@ -109,7 +131,7 @@ ApplicationWindow {
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.LeftButton
-                onPressed: window.startSystemMove()
+                onPressed: { window.queueVisible = false; window.startSystemMove() }
             }
             RowLayout {
                 anchors.fill: parent
@@ -129,20 +151,20 @@ ApplicationWindow {
                     Layout.maximumWidth: 180
                 }
                 FutariToolButton {
-                    iconName: "window-minimize"; iconColor: appController.authenticated ? Theme.iconPrimary : Theme.authText
-                    implicitWidth: 40; implicitHeight: 32; onClicked: window.showMinimized()
+                    iconName: "window-minimize"; iconColor: Theme.iconPrimary; iconSize: 21
+                    implicitWidth: 38; implicitHeight: 38; onClicked: window.showMinimized()
                     ToolTip.visible: hovered; ToolTip.text: "最小化"
                 }
                 FutariToolButton {
                     iconName: window.visibility === Window.Maximized ? "window-restore" : "window-maximize"
-                    iconColor: appController.authenticated ? Theme.iconPrimary : Theme.authText
-                    implicitWidth: 40; implicitHeight: 32
+                    iconColor: Theme.iconPrimary; iconSize: 21
+                    implicitWidth: 38; implicitHeight: 38
                     onClicked: window.visibility === Window.Maximized ? window.showNormal() : window.showMaximized()
                     ToolTip.visible: hovered; ToolTip.text: window.visibility === Window.Maximized ? "还原" : "最大化"
                 }
                 FutariToolButton {
-                    iconName: "window-close"; iconColor: appController.authenticated ? Theme.iconPrimary : Theme.authText
-                    hoverColor: Theme.danger; implicitWidth: 40; implicitHeight: 32; onClicked: window.close()
+                    iconName: "window-close"; iconColor: Theme.iconPrimary; iconSize: 21
+                    hoverColor: Theme.danger; implicitWidth: 38; implicitHeight: 38; onClicked: window.close()
                     ToolTip.visible: hovered; ToolTip.text: "关闭"
                 }
             }
@@ -218,7 +240,6 @@ ApplicationWindow {
                             TransferPage {}
                             SettingsPage {}
                         }
-                        QueueDrawer { Layout.fillHeight: true; visible: window.queueVisible }
                     }
                     PlayerBar {
                         Layout.fillWidth: true
@@ -226,6 +247,21 @@ ApplicationWindow {
                         onOpenLyrics: window.navigate("lyrics")
                     }
                 }
+            }
+            MouseArea {
+                anchors.fill: parent
+                z: 1
+                visible: window.queueVisible
+                onClicked: window.queueVisible = false
+            }
+            QueueDrawer {
+                anchors.top: parent.top
+                anchors.topMargin: 72
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 100
+                z: 2
+                visible: window.queueVisible
             }
         }
     }

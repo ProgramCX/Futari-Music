@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Futari Music
+Comment=Listen to music with Futari Music
+Exec=appFutariMusic
+Icon=futari-music
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+StartupNotify=true

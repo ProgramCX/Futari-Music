@@ -1,10 +1,16 @@
 #include "ApiClient.h"
-#include "MultipartRequest.h"
 
 #include <QHttpMultiPart>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QNetworkRequest>
+#include <QUrlQuery>
+
+#include "MultipartRequest.h"
+
+namespace {
+constexpr char kSessionCancelledProperty[] = "futariSessionCancelled";
+}
 
 ApiClient::ApiClient(QObject *parent) : QObject(parent) {}
 
@@ -18,7 +24,11 @@ void ApiClient::setBaseUrl(const QUrl &url) {
 void ApiClient::setToken(const QString &token) { m_token = token; }
 void ApiClient::abortAll(QNetworkReply *except) {
     for (QNetworkReply *reply : m_network.findChildren<QNetworkReply *>()) {
-        if (reply != except && reply->isRunning()) reply->abort();
+        if (reply != except && reply->isRunning()) {
+            // 只静默主动取消；超时也可能返回 OperationCanceledError，仍需报告给用户。
+            reply->setProperty(kSessionCancelledProperty, true);
+            reply->abort();
+        }
     }
 }
 
@@ -69,17 +79,27 @@ void ApiClient::putUpload(const QString &path, QHttpMultiPart *parts, Callback o
 void ApiClient::download(const QString &path, Callback onSuccess) {
     QNetworkReply *reply = m_network.get(makeRequest(path));
     connect(reply, &QNetworkReply::finished, this, [this, reply, onSuccess = std::move(onSuccess)] {
+        if (reply->property(kSessionCancelledProperty).toBool()) {
+            reply->deleteLater();
+            return;
+        }
         const QByteArray bytes = reply->readAll();
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        if (status == 401) emit unauthorized();
+        if (status == 401)
+            emit unauthorized();
         else if (reply->error() != QNetworkReply::NoError || status >= 400)
             emit errorOccurred(reply->errorString());
-        else if (onSuccess) onSuccess(QString::fromLatin1(bytes.toBase64()));
+        else if (onSuccess)
+            onSuccess(QString::fromLatin1(bytes.toBase64()));
         reply->deleteLater();
     });
 }
 
 void ApiClient::finishJson(QNetworkReply *reply, Callback onSuccess, ErrorCallback onError) {
+    if (reply->property(kSessionCancelledProperty).toBool()) {
+        reply->deleteLater();
+        return;
+    }
     const QByteArray bytes = reply->readAll();
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     QJsonParseError parseError;
@@ -93,4 +113,22 @@ void ApiClient::finishJson(QNetworkReply *reply, Callback onSuccess, ErrorCallba
         if (onError) onError();
     } else if (onSuccess) onSuccess(envelope.value("data"));
     reply->deleteLater();
+}
+
+void ApiClient::pagedGet(const QString& path, const PageQuery& pageQuery, PageCallback onSuccess,
+                         ErrorCallback onError) {
+    QUrl url(path);
+    QUrlQuery query(url);
+    query.addQueryItem("pageNum", QString::number(pageQuery.page));
+    query.addQueryItem("pageSize", QString::number(pageQuery.pageSize));
+    if (!pageQuery.keyword.isEmpty())
+        query.addQueryItem("keyword",
+                           QString::fromLatin1(QUrl::toPercentEncoding(pageQuery.keyword)));
+    url.setQuery(query);
+    request(
+        "GET", url.toString(QUrl::FullyEncoded), {},
+        [onSuccess = std::move(onSuccess)](const QJsonValue& value) {
+            if (onSuccess) onSuccess(value.toObject());
+        },
+        std::move(onError));
 }

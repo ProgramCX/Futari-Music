@@ -4,8 +4,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network WebSockets Widgets Svg Test)
+include(../../src/ControllerSources.cmake)
 add_executable(playbackUiRegression main.cpp
-    ../../src/AppController.cpp ../../src/AppController.h
+    ${FUTARI_CONTROLLER_SOURCES}
     ../../src/ApiClient.cpp ../../src/ApiClient.h
     ../../src/AudioPlayer.cpp ../../src/AudioPlayer.h
     ../../src/AudioMetadataReader.cpp ../../src/AudioMetadataReader.h

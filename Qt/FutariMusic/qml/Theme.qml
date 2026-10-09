@@ -30,16 +30,16 @@ QtObject {
     readonly property color checkBorderHover: dark ? "#7e8795" : "#9aa4b2"
     readonly property color checkDisabledFill: dark ? "#303540" : "#edf0f3"
     readonly property color checkDisabledMark: dark ? "#c2c8d1" : "#5e6978"
-    readonly property color authBackground: "#211b2d"
-    readonly property color authSurface: "#231c30"
-    readonly property color authField: "#3b3550"
-    readonly property color authBorder: "#51465f"
-    readonly property color authText: "#f6f3fa"
-    readonly property color authMuted: "#b9b1c7"
-    readonly property color authPlaceholder: "#a9a3b6"
-    readonly property color authAccent: "#4bdfa0"
-    readonly property color authAction: "#2e5cb8"
-    readonly property color authLink: "#8db6ff"
+    readonly property color authBackground: background
+    readonly property color authSurface: surface
+    readonly property color authField: fieldFill
+    readonly property color authBorder: border
+    readonly property color authText: text
+    readonly property color authMuted: muted
+    readonly property color authPlaceholder: muted
+    readonly property color authAccent: accent
+    readonly property color authAction: accent
+    readonly property color authLink: accent
     readonly property color border: dark ? "#363c47" : "#e5e9ee"
     readonly property color danger: "#e45d68"
     readonly property color popupShadow: "#000000"

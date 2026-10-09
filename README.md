@@ -195,6 +195,10 @@ cmake --build Qt/FutariMusic/build --parallel
 | `BOOTSTRAP_ADMIN_PASSWORD` | 空 | 设置后执行管理员初始化 |
 | `BOOTSTRAP_ADMIN_RESET_EXISTING` | `false` | 单次管理员恢复：授予管理员角色、重置密码并撤销登录令牌 |
 | `MUSIC_STORAGE_DIR` | `./music-storage` | 服务端音频与封面目录，相对于启动工作目录 |
+| `FUTARI_UPDATE_DIR` | `./updates` | 客户端更新包缓存目录，按 `windows-x64`、`ubuntu-amd64` 分子目录 |
+| `FUTARI_UPDATE_GITHUB_REPOSITORY` | `ProgramCX/Futari-Music` | 后端轮询 GitHub Releases 的仓库 |
+| `FUTARI_UPDATE_POLL_ENABLED` | `true` | 是否启用后台更新包轮询 |
+| `FUTARI_UPDATE_POLL_INTERVAL_MS` | `600000` | 轮询间隔，默认 10 分钟 |
 | `FUTARI_UPLOAD_MAX_AUDIO_SIZE` | `64MB` | 单个音频文件上限 |
 | `FUTARI_UPLOAD_MAX_REQUEST_SIZE` | `80MB` | 完整 multipart 请求上限 |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | 后端允许的浏览器跨域来源；客户端本身为桌面应用 |
@@ -204,6 +208,8 @@ cmake --build Qt/FutariMusic/build --parallel
 `BOOTSTRAP_ADMIN_RESET_EXISTING=true` 仅用于明确的账号恢复，成功后改回 `false` 或移除该配置，避免每次启动重置账号。
 
 客户端设置通过 `QSettings` 持久化：服务器地址、主题、自动登录选择、下载与缓存目录等。下载默认使用当前用户的系统 Music 目录，应用缓存默认使用 Qt 标准应用数据目录。自动登录保存登录令牌，不保存账号密码。
+
+客户端自动更新接口、兼容版本链、发行附件命名和发布步骤见[客户端自动更新与发行约定](Qt/doc/客户端自动更新与发行约定.md)。
 
 ## 使用指南
 
@@ -315,6 +321,7 @@ Futari-Music/
 | 文档 | 内容 |
 | --- | --- |
 | [客户端实现说明](Qt/doc/客户端实现说明.md) | 已实现功能、构建、队列行为、验证记录及限制 |
+| [客户端自动更新与发行约定](Qt/doc/客户端自动更新与发行约定.md) | 版本兼容规则、自动更新配置及 Windows/Ubuntu/GitHub Release 发布方式 |
 | [Qt 客户端技术细节](Qt/doc/Qt客户端技术细节描述.md) | 客户端设计与技术目标，包含早期方案 |
 | [后端实现与部署](SpringBoot/doc/后端实现与部署.md) | 实际 REST 接口、WebSocket 协议、数据、权限及部署 |
 | [后端技术细节](SpringBoot/doc/后端技术细节描述.md) | 早期设计说明及后续补充 |

@@ -11,14 +11,22 @@ Item {
         color: Theme.authBackground
     }
     Rectangle {
-        anchors.fill: parent
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 48, 430)
+        height: Math.min(parent.height - 32, registering ? 620 : 550)
+        radius: Theme.radiusLarge
         color: Theme.authSurface
         ColumnLayout {
-            anchors.fill: parent; anchors.leftMargin: 42; anchors.rightMargin: 42
-            anchors.topMargin: 24; anchors.bottomMargin: 18; spacing: 12
-            SvgIcon { name: "music-note"; color: Theme.authAccent; iconSize: 64; Layout.alignment: Qt.AlignHCenter }
+            anchors.fill: parent; anchors.leftMargin: 30; anchors.rightMargin: 30
+            anchors.topMargin: 28; anchors.bottomMargin: 22; spacing: 13
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 72; Layout.preferredHeight: 72
+                radius: 20; color: Theme.secondary
+                SvgIcon { anchors.centerIn: parent; name: "music-note"; color: Theme.authAccent; iconSize: 40 }
+            }
             Text { text: "Futari Music"; color: Theme.authText; font.pixelSize: 27; font.bold: true; Layout.alignment: Qt.AlignHCenter }
-            Text { text: registering ? "创建你的账号" : "欢迎回来，一起听歌"; color: Theme.authMuted; Layout.alignment: Qt.AlignHCenter; bottomPadding: 10 }
+            Text { text: registering ? "创建你的账号" : "欢迎回来，一起听歌"; color: Theme.authMuted; Layout.alignment: Qt.AlignHCenter; bottomPadding: 8 }
             FutariTextField {
                 id: server; authStyle: true; Layout.fillWidth: true; text: appController.serverUrl; placeholderText: "服务器地址"; onEditingFinished: appController.serverUrl = text
             }
@@ -63,21 +71,46 @@ Item {
                     }
                 }
             }
-            Text { text: appController.errorMessage; color: "#ffadb3"; visible: text.length > 0; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Text { text: appController.errorMessage; color: Theme.danger; visible: text.length > 0; wrapMode: Text.Wrap; Layout.fillWidth: true }
             FutariButton {
                 id: loginButton
                 text: registering ? "注册并登录" : "登录"
                 Layout.fillWidth: true; Layout.preferredHeight: 46
                 onClicked: submit()
                 prominent: true; accent: Theme.authAction
-                contentItem: Text { text: loginButton.text; color: Theme.authText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.bold: true }
+                contentItem: Text { text: loginButton.text; color: Theme.accentText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.bold: true }
             }
             Item { Layout.fillHeight: true }
-            FutariButton {
+            Item {
                 id: switchButton
-                text: registering ? "已有账号？返回登录" : "注册账号"; flat: true; Layout.alignment: Qt.AlignHCenter
-                onClicked: { registering = !registering; appController.clearError() }
-                contentItem: Text { text: switchButton.text; color: Theme.authLink; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: switchLabel.implicitWidth + 32
+                Layout.preferredHeight: 38
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: registering ? "返回登录" : "注册账号"
+                HoverHandler { id: switchHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: { root.registering = !root.registering; appController.clearError() } }
+                Keys.onReturnPressed: { root.registering = !root.registering; appController.clearError() }
+                Keys.onSpacePressed: { root.registering = !root.registering; appController.clearError() }
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 4
+                    Text {
+                        text: root.registering ? "已有账号？" : "还没有账号？"
+                        color: Theme.authMuted
+                        font.pixelSize: 13
+                    }
+                    Text {
+                        id: switchLabel
+                        text: root.registering ? "返回登录" : "注册账号"
+                        color: switchHover.hovered || switchButton.activeFocus
+                               ? Qt.darker(Theme.authLink, 1.12) : Theme.authLink
+                        font.pixelSize: 13
+                        font.weight: Font.Medium
+                        font.underline: switchHover.hovered || switchButton.activeFocus
+                    }
+                }
             }
         }
     }

@@ -2,8 +2,13 @@ cmake_minimum_required(VERSION 3.21)
 project(FutariMusic VERSION 0.2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(FUTARI_CLIENT_VERSION "0.0.1-dev" CACHE STRING "Client version embedded in the executable")
+set(FUTARI_SERVER_COMPAT_VERSION "0.1.0" CACHE STRING "Server compatibility version embedded in the executable")
+set(FUTARI_WINDOWS_INSTALL_ARGUMENTS "/S" CACHE STRING "Silent installer arguments for Windows update EXE packages")
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network WebSockets Widgets Svg)
 qt_standard_project_setup(REQUIRES 6.8)
+
+include(src/ControllerSources.cmake)
 
 qt_add_executable(appFutariMusic
     main.cpp
@@ -12,8 +17,9 @@ qt_add_executable(appFutariMusic
     src/AudioPlayer.h src/AudioPlayer.cpp
     src/AudioMetadataReader.h src/AudioMetadataReader.cpp
     src/TransferManager.h src/TransferManager.cpp
-    src/AppController.h src/AppController.cpp
+    ${FUTARI_CONTROLLER_SOURCES}
     src/NotificationService.h src/NotificationService.cpp
+    src/ClientUpdateManager.h src/ClientUpdateManager.cpp
 )
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
@@ -26,6 +32,7 @@ qt_add_qml_module(appFutariMusic
         qml/components/Sidebar.qml
         qml/components/PlayerBar.qml
         qml/components/SongRow.qml
+        qml/components/BatchSongToolbar.qml
         qml/components/QueueDrawer.qml
         qml/components/SvgIcon.qml
         qml/components/FutariButton.qml
@@ -69,6 +76,7 @@ qt_add_qml_module(appFutariMusic
         qml/assets/icons/window-maximize.svg
         qml/assets/icons/window-restore.svg
         qml/assets/icons/window-close.svg
+        qml/assets/icons/expand.svg
         qml/assets/icons/play.svg
         qml/assets/icons/pause.svg
         qml/assets/icons/previous.svg
@@ -93,7 +101,28 @@ qt_add_qml_module(appFutariMusic
         qml/assets/icons/arrow-right.svg
 )
 
+qt_add_resources(appFutariMusic appIconResources
+    PREFIX "/icons"
+    FILES icons/futari_icon_1024.png
+)
+
 set_target_properties(appFutariMusic PROPERTIES WIN32_EXECUTABLE TRUE)
+if(WIN32)
+    target_sources(appFutariMusic PRIVATE icons/futari_icon.rc)
+elseif(UNIX AND NOT APPLE)
+    install(TARGETS appFutariMusic RUNTIME DESTINATION bin)
+    install(FILES icons/futari_icon_1024.png
+        DESTINATION share/icons/hicolor/1024x1024/apps
+        RENAME futari-music.png
+    )
+    install(FILES icons/futari-music.desktop DESTINATION share/applications)
+endif()
+
+target_compile_definitions(appFutariMusic PRIVATE
+    "FUTARI_CLIENT_VERSION=\"${FUTARI_CLIENT_VERSION}\""
+    "FUTARI_SERVER_COMPAT_VERSION=\"${FUTARI_SERVER_COMPAT_VERSION}\""
+    "FUTARI_WINDOWS_INSTALL_ARGUMENTS=\"${FUTARI_WINDOWS_INSTALL_ARGUMENTS}\""
+)
 target_link_libraries(appFutariMusic PRIVATE
     Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network
     Qt6::WebSockets Qt6::Widgets Qt6::Svg

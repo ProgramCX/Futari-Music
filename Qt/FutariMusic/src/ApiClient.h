@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FUTARI_API_CLIENT_H
+#define FUTARI_API_CLIENT_H
 
 #include <QJsonObject>
 #include <QJsonValue>
@@ -14,9 +15,18 @@ class QHttpMultiPart;
 // HTTP 通信边界：统一认证、响应信封和错误处理。
 class ApiClient final : public QObject {
     Q_OBJECT
+    Q_DISABLE_COPY(ApiClient)
 public:
     using Callback = std::function<void(const QJsonValue &)>;
     using ErrorCallback = std::function<void()>;
+    struct PageQuery {
+        int page = 1;
+        int pageSize = 40;
+        QString keyword;
+    };
+    using PageCallback = std::function<void(const QJsonObject&)>;
+    void pagedGet(const QString& path, const PageQuery& query, PageCallback onSuccess,
+                  ErrorCallback onError = {});
     explicit ApiClient(QObject *parent = nullptr);
     void setBaseUrl(const QUrl &url);
     void setToken(const QString &token);
@@ -38,3 +48,5 @@ private:
     QUrl m_baseUrl;
     QString m_token;
 };
+
+#endif  // FUTARI_API_CLIENT_H

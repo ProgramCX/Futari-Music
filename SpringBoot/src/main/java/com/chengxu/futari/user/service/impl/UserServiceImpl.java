@@ -27,11 +27,23 @@ public class UserServiceImpl implements UserService {
     }
     public UserResponse response(User user) {
         String room = redis.opsForValue().get(RedisKeys.userRoom(user.getId()));
-        return new UserResponse(user.getId(), user.getNickname(), user.getAvatarUrl(), Boolean.TRUE.equals(redis.hasKey(RedisKeys.online(user.getId()))), room == null ? null : Long.valueOf(room));
+        return new UserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getAvatarUrl(),
+                Boolean.TRUE.equals(redis.hasKey(RedisKeys.online(user.getId()))),
+                room == null ? null : Long.valueOf(room));
     }
     public PageResult<UserResponse> search(String keyword, int pageNum, int pageSize) {
         if (pageNum < 1 || pageSize < 1 || pageSize > 100) throw new BizException(ErrorCode.PARAM);
-        LambdaQueryWrapper<User> query = new LambdaQueryWrapper<User>().like(keyword != null && !keyword.isBlank(), User::getNickname, keyword == null ? "" : keyword.trim()).orderByAsc(User::getId);
+        String searchTerm = keyword == null ? "" : keyword.trim();
+        LambdaQueryWrapper<User> query = new LambdaQueryWrapper<User>()
+                .and(!searchTerm.isEmpty(), matches -> matches
+                        .like(User::getNickname, searchTerm)
+                        .or()
+                        .like(User::getUsername, searchTerm))
+                .orderByAsc(User::getId);
         Page<User> page = mapper.selectPage(new Page<>(pageNum, pageSize), query);
         List<UserResponse> list = page.getRecords().stream().map(this::response).toList();
         return new PageResult<>(page.getTotal(), list);

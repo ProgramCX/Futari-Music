@@ -7,9 +7,13 @@ import "../components"
 Item {
     id: root
     clip: true
+    // 页面只保存当前视图与勾选项；歌单内容随控制器快照更新，不复制业务状态。
     property bool serverMode: false
     property int selectedId: 0
+    // 添加对话框选择的是曲库歌曲；批量操作选择的是当前歌单歌曲，分别维护避免刷新时互相覆盖。
     property var selectedSongIds: []
+    property var batchSelectedSongIds: []
+    property bool batchMode: false
     property var selectedPlaylist: {
         const entries = serverMode ? appController.serverPlaylists : appController.playlists
         for (let entry of entries) if (entry.id === selectedId) return entry
@@ -19,10 +23,15 @@ Item {
     Component.onCompleted: refreshCurrentList()
     onServerModeChanged: {
         selectedId = 0
+        batchMode = false
+        selectedSongIds = []
+        batchSelectedSongIds = []
         refreshCurrentList()
     }
     onSelectedPlaylistChanged: {
         if (playlistNameField) playlistNameField.text = root.selectedPlaylist.name || ""
+        root.batchSelectedSongIds = root.batchSelectedSongIds.filter(songId =>
+            (root.selectedPlaylist.songs || []).some(song => Number(song.id) === Number(songId)))
     }
 
     function refreshCurrentList() {
@@ -40,10 +49,30 @@ Item {
 
     function toggleSelectedSong(songId, selected) {
         const ids = root.selectedSongIds.slice()
-        const index = ids.indexOf(songId)
-        if (selected && index < 0) ids.push(songId)
+        const numericId = Number(songId)
+        const index = ids.indexOf(numericId)
+        if (selected && index < 0) ids.push(numericId)
         else if (!selected && index >= 0) ids.splice(index, 1)
         root.selectedSongIds = ids
+    }
+
+    function toggleBatchSelectedSong(songId, selected) {
+        const ids = root.batchSelectedSongIds.slice()
+        const numericId = Number(songId)
+        const index = ids.indexOf(numericId)
+        if (selected && index < 0) ids.push(numericId)
+        else if (!selected && index >= 0) ids.splice(index, 1)
+        root.batchSelectedSongIds = ids
+    }
+
+    function selectedSongs() {
+        return (root.selectedPlaylist.songs || []).filter(song => root.batchSelectedSongIds.indexOf(Number(song.id)) >= 0)
+    }
+
+    function setAllSongsSelected(checked) {
+        root.batchSelectedSongIds = checked
+            ? (root.selectedPlaylist.songs || []).map(song => Number(song.id))
+            : []
     }
 
     function addSelectedSongs() {
@@ -168,6 +197,15 @@ Item {
                         onClicked: root.refreshCurrentList()
                     }
                     FutariButton {
+                        text: root.batchMode ? "退出批量操作" : "批量操作"
+                        iconName: root.batchMode ? "window-close" : "queue"
+                        visible: !!root.selectedPlaylist.id
+                        onClicked: {
+                            root.batchMode = !root.batchMode
+                            if (!root.batchMode) root.batchSelectedSongIds = []
+                        }
+                    }
+                    FutariButton {
                         text: "添加歌曲"
                         iconName: "plus"
                         visible: !!root.selectedPlaylist.id && (!root.serverMode || appController.canManageServerPlaylist)
@@ -230,6 +268,26 @@ Item {
                         }
                 }
 
+                RowLayout {
+                    visible: root.batchMode && !!root.selectedPlaylist.id
+                    Layout.fillWidth: true
+                    FutariCheckBox {
+                        text: "全选当前歌单"
+                        checked: (root.selectedPlaylist.songs || []).length > 0
+                                 && (root.selectedPlaylist.songs || []).every(song => root.batchSelectedSongIds.indexOf(Number(song.id)) >= 0)
+                        onClicked: root.setAllSongsSelected(checked)
+                    }
+                    BatchSongToolbar {
+                        Layout.fillWidth: true
+                        playlistId: Number(root.selectedId)
+                        serverPlaylist: root.serverMode
+                        selectedIds: root.batchSelectedSongIds
+                        selectedSongs: root.selectedSongs()
+                        canDelete: !root.serverMode || appController.canManageServerPlaylist
+                        onSelectionClearRequested: root.batchSelectedSongIds = []
+                    }
+                }
+
                 ListView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -240,6 +298,12 @@ Item {
                     delegate: RowLayout {
                         width: ListView.view.width
                         spacing: 6
+                        FutariCheckBox {
+                            visible: root.batchMode
+                            text: ""
+                            checked: root.batchSelectedSongIds.indexOf(Number(modelData.id)) >= 0
+                            onClicked: root.toggleBatchSelectedSong(modelData.id, checked)
+                        }
                         SongRow {
                             Layout.fillWidth: true
                             song: modelData
@@ -248,6 +312,7 @@ Item {
                         }
                         FutariToolButton {
                             iconName: "queue-up"
+                            visible: !root.batchMode
                             enabled: index > 0 && (!root.serverMode || appController.canManageServerPlaylist)
                             onClicked: root.moveSong(index, -1)
                             ToolTip.visible: hovered
@@ -255,6 +320,7 @@ Item {
                         }
                         FutariToolButton {
                             iconName: "queue-down"
+                            visible: !root.batchMode
                             enabled: index < (root.selectedPlaylist.songs || []).length - 1
                                      && (!root.serverMode || appController.canManageServerPlaylist)
                             onClicked: root.moveSong(index, 1)
@@ -263,7 +329,7 @@ Item {
                         }
                         FutariToolButton {
                             iconName: "remove"
-                            visible: !root.serverMode || appController.canManageServerPlaylist
+                            visible: !root.batchMode && (!root.serverMode || appController.canManageServerPlaylist)
                             onClicked: appController.removeSongFromPlaylist(root.selectedPlaylist.id, modelData.id, root.serverMode)
                             ToolTip.visible: hovered
                             ToolTip.text: "从歌单移除"

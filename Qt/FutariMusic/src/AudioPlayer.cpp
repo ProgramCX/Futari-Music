@@ -103,7 +103,7 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
         emit errorOccurred(QStringLiteral("歌曲文件信息无效"));
         return;
     }
-    ++m_generation;
+    m_sourceRequests.renew();
     if (m_activeReply) m_activeReply->abort();
     m_player.stop();
     m_player.setSource({});
@@ -129,7 +129,7 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
     }
     if (m_loading) { m_loading = false; emit loadingChanged(); }
     m_loading = true; emit loadingChanged();
-    const quint64 generation = m_generation;
+    const auto token = m_sourceRequests.token();
     const QString directory = persistCache ? persistentDirectory
             : QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/FutariMusicPlayback";
     QDir().mkpath(directory);
@@ -165,18 +165,22 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
     if (context->offset) request.setRawHeader("Range", "bytes=" + QByteArray::number(context->offset) + "-");
     auto *reply = m_network.get(request);
     m_activeReply = reply;
-    const auto consume = [this, reply, context, generation] {
+    const auto consume = [this, reply, context, token] {
         const QByteArray chunk = reply->readAll();
-        if (generation != m_generation) return;
+        if (token.expired()) return;
         if (!context->initialized) {
             context->initialized = true;
             const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
             if (context->offset > 0 && status == 200) {
-                context->file.resize(0); context->file.seek(0); context->digest.reset();
+                context->file.resize(0);
+                context->file.seek(0);
+                context->digest.reset();
             } else if (context->offset > 0 && status == 206) {
                 const QByteArray expected = "bytes " + QByteArray::number(context->offset) + "-";
-                if (!reply->rawHeader("Content-Range").startsWith(expected)) context->invalid = true;
-            } else if (status != 200) context->invalid = true;
+                if (!reply->rawHeader("Content-Range").startsWith(expected))
+                    context->invalid = true;
+            } else if (status != 200)
+                context->invalid = true;
         }
         if (!context->invalid && !chunk.isEmpty()) {
             context->digest.addData(chunk);
@@ -185,38 +189,46 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
     };
     connect(reply, &QNetworkReply::readyRead, this, consume);
     connect(reply, &QNetworkReply::finished, this,
-            [this, reply, context, consume, path, partialPath, directory, hash, generation, positionMs, autoPlay, persistCache] {
-        if (m_activeReply == reply) m_activeReply.clear();
-        if (generation != m_generation) {
-            context->file.close();
-            if (!persistCache) QFile::remove(partialPath);
-            reply->deleteLater(); return;
-        }
-        consume();
-        context->file.flush(); context->file.close();
-        const bool networkOk = reply->error() == QNetworkReply::NoError &&
-                               reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 400;
-        const bool hashOk = context->digest.result().toHex() == hash.toLatin1();
-        bool stored = false;
-        if (networkOk && !context->invalid && hashOk) {
-            QFile::remove(path);
-            stored = QFile::rename(partialPath, path);
-        }
-        if (!stored) {
-            const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            const bool resumable = reply->error() != QNetworkReply::NoError &&
-                                   (status == 200 || status == 206) && !context->invalid;
-            if (!resumable) QFile::remove(partialPath);
-            if (!resumable && m_activePartialPath == partialPath) m_activePartialPath.clear();
-            emit errorOccurred(networkOk ? QStringLiteral("下载校验或缓存写入失败") : reply->errorString());
-        } else {
-            if (persistCache) pruneCache(directory, path);
-            if (m_activePartialPath == partialPath) m_activePartialPath.clear();
-            loadFile(path, positionMs, autoPlay);
-        }
-        m_loading = false; emit loadingChanged();
-        reply->deleteLater();
-    });
+            [this, reply, context, consume, path, partialPath, directory, hash, token, positionMs,
+             autoPlay, persistCache] {
+                if (m_activeReply == reply) m_activeReply.clear();
+                if (token.expired()) {
+                    context->file.close();
+                    if (!persistCache) QFile::remove(partialPath);
+                    reply->deleteLater();
+                    return;
+                }
+                consume();
+                context->file.flush();
+                context->file.close();
+                const bool networkOk =
+                    reply->error() == QNetworkReply::NoError &&
+                    reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 400;
+                const bool hashOk = context->digest.result().toHex() == hash.toLatin1();
+                bool stored = false;
+                if (networkOk && !context->invalid && hashOk) {
+                    QFile::remove(path);
+                    stored = QFile::rename(partialPath, path);
+                }
+                if (!stored) {
+                    const int status =
+                        reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                    const bool resumable = reply->error() != QNetworkReply::NoError &&
+                                           (status == 200 || status == 206) && !context->invalid;
+                    if (!resumable) QFile::remove(partialPath);
+                    if (!resumable && m_activePartialPath == partialPath)
+                        m_activePartialPath.clear();
+                    emit errorOccurred(networkOk ? QStringLiteral("下载校验或缓存写入失败")
+                                                 : reply->errorString());
+                } else {
+                    if (persistCache) pruneCache(directory, path);
+                    if (m_activePartialPath == partialPath) m_activePartialPath.clear();
+                    loadFile(path, positionMs, autoPlay);
+                }
+                m_loading = false;
+                emit loadingChanged();
+                reply->deleteLater();
+            });
 }
 
 void AudioPlayer::loadFile(const QString &path, qint64 positionMs, bool autoPlay) {
@@ -238,7 +250,7 @@ void AudioPlayer::playLocalFile(const QString &path, const QString &title, const
         emit errorOccurred(QStringLiteral("本地歌曲文件不存在或无法读取"));
         return;
     }
-    ++m_generation;
+    m_sourceRequests.renew();
     if (m_activeReply) m_activeReply->abort();
     m_player.stop(); m_player.setSource({});
     if (!m_ephemeralPath.isEmpty()) { QFile::remove(m_ephemeralPath); QFile::remove(m_ephemeralPath + ".part"); }
@@ -251,10 +263,14 @@ void AudioPlayer::playLocalFile(const QString &path, const QString &title, const
     m_player.play();
 }
 void AudioPlayer::stop() {
-    ++m_generation;
+    m_sourceRequests.renew();
     if (m_activeReply) m_activeReply->abort();
-    m_player.stop(); m_player.setSource({});
-    if (!m_ephemeralPath.isEmpty()) { QFile::remove(m_ephemeralPath); QFile::remove(m_ephemeralPath + ".part"); }
+    m_player.stop();
+    m_player.setSource({});
+    if (!m_ephemeralPath.isEmpty()) {
+        QFile::remove(m_ephemeralPath);
+        QFile::remove(m_ephemeralPath + ".part");
+    }
     m_ephemeralPath.clear(); m_activePlaybackPath.clear(); m_activePartialPath.clear();
     m_song = {}; emit songChanged();
     if (m_loading) { m_loading = false; emit loadingChanged(); }

@@ -25,6 +25,12 @@ futari:
     ttl-seconds: ${JWT_TTL_SECONDS:86400}
   storage:
     directory: ${MUSIC_STORAGE_DIR:./music-storage}
+  updates:
+    github-repository: ${FUTARI_UPDATE_GITHUB_REPOSITORY:ProgramCX/Futari-Music}
+    directory: ${FUTARI_UPDATE_DIR:./updates}
+    poll-enabled: ${FUTARI_UPDATE_POLL_ENABLED:true}
+    poll-initial-delay-ms: ${FUTARI_UPDATE_POLL_INITIAL_DELAY_MS:0}
+    poll-interval-ms: ${FUTARI_UPDATE_POLL_INTERVAL_MS:600000}
   upload:
     max-audio-size: ${FUTARI_UPLOAD_MAX_AUDIO_SIZE:64MB}
   cors:

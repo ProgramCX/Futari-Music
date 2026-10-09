@@ -17,8 +17,12 @@ Item {
             Layout.fillWidth: true; Layout.preferredHeight: 130; clip: true; model: appController.userResults
             delegate: RowLayout {
                 width: ListView.view.width; height: 48
-                Text { text: modelData.nickname; color: Theme.text; Layout.fillWidth: true }
-                FutariButton { text: "添加搭子"; onClicked: appController.addPartner(modelData.id) }
+                Text { text: modelData.nickname + (modelData.username ? " · @" + modelData.username : ""); color: Theme.text; Layout.fillWidth: true }
+                FutariButton {
+                    text: modelData.username === appController.username ? "当前账户" : "添加搭子"
+                    enabled: modelData.username !== appController.username
+                    onClicked: appController.addPartner(modelData.id)
+                }
             }
         }
         FutariButton { text: "更多搜索结果"; visible: appController.hasMoreUsers; onClicked: appController.loadMoreUsers() }

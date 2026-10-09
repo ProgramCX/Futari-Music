@@ -6,6 +6,7 @@ import "../components"
 
 Item {
     id: root
+    // 标签页是展示状态；任务状态/进度来自 TransferManager，页面只做筛选。
     property int currentTab: 0
     readonly property var tabNames: ["正在上传", "正在下载", "上传的歌曲", "下载的歌曲"]
 

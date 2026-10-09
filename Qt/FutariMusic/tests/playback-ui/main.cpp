@@ -22,6 +22,7 @@
 #include <QTest>
 #include <QTextStream>
 #include <QTimer>
+#include <QUrlQuery>
 #include <QWebSocket>
 #include <QWebSocketServer>
 #include <functional>
@@ -60,6 +61,10 @@ public:
     QJsonArray uploaded;
     QList<QByteArray> uploadBodies;
     QList<QByteArray> multipartTypes;
+    int delayedSongRequests = 0;
+    bool pagingScenario = false;
+    bool failNextPage = false;
+    QList<QUrlQuery> songQueries;
     bool delayLyrics = false;
     int lyricRequests = 0;
     bool failNextUpload = false;
@@ -112,6 +117,16 @@ public:
                     return;
                 }
                 if (path.endsWith("/file")) { respond(socket, audio, "audio/wav"); return; }
+                if (path == "/api/songs/999") {
+                    ++delayedSongRequests;
+                    const auto response = QJsonDocument(QJsonObject{{"code", 0}, {"data", song(999)}}).toJson();
+                    QTimer::singleShot(300, socket, [this, socket, response] { respond(socket, response, "application/json"); });
+                    return;
+                }
+                if (pagingScenario && path == "/api/songs") {
+                    respondPage(socket, QUrlQuery(QUrl(QString::fromUtf8(first.value(1)))));
+                    return;
+                }
                 const QJsonValue data = route(first.value(0), path, body);
                 respond(socket, QJsonDocument(QJsonObject{{"code", 0}, {"message", "ok"}, {"data", data}}).toJson(QJsonDocument::Compact), "application/json");
             });
@@ -126,6 +141,23 @@ public:
                 if (type == "PLAY") { current = data.value("songId").toInteger(); broadcast("PLAY", playback()); }
             });
         });
+    }
+    void respondPage(QTcpSocket *socket, const QUrlQuery &query) {
+        songQueries.append(query);
+        const QString keyword = query.queryItemValue("keyword", QUrl::FullyDecoded);
+        const int page = query.queryItemValue("pageNum").toInt();
+        if (page == 2 && failNextPage) {
+            failNextPage = false;
+            respond(socket, QJsonDocument(QJsonObject{{"code", 1}, {"message", "page failed"}}).toJson(), "application/json");
+            return;
+        }
+        const QJsonObject result{{"total", 2}, {"list", QJsonArray{song(keyword == "old" ? 100 : 200 + page)}}};
+        const auto bytes = QJsonDocument(QJsonObject{{"code", 0}, {"data", result}}).toJson();
+        if (keyword == "old") {
+            QTimer::singleShot(300, socket, [this, socket, bytes] { respond(socket, bytes, "application/json"); });
+        } else {
+            respond(socket, bytes, "application/json");
+        }
     }
     QJsonObject song(qint64 id) const { return {{"id", id}, {"title", QString("Song %1").arg(id)}, {"artist", "Singer"}, {"album", "Album"}, {"coverUrl", QJsonValue(QJsonValue::Null)}, {"format", "wav"}, {"hash", QString::fromLatin1(QCryptographicHash::hash(audio, QCryptographicHash::Sha256).toHex())}, {"fileSize", audio.size()}, {"durationMs", 10000}}; }
     QJsonObject playback() const { return {{"currentSongId", current ? QJsonValue(current) : QJsonValue()}, {"status", "paused"}, {"positionMs", 0}, {"serverTimestamp", QDateTime::currentMSecsSinceEpoch()}}; }
@@ -198,6 +230,38 @@ int main(int argc, char **argv) {
     check(isolatedSettings.fileName().startsWith(directory.path()), "settings use temporary INI storage instead of Windows registry");
     controller.login("test", "test-password");
     check(waitUntil([&] { return controller.authenticated() && server.peer && controller.songs().size() == 3; }), "real client HTTP login and WS connection");
+    server.pagingScenario = true;
+    controller.searchSongs("old");
+    check(waitUntil([&] { return server.songQueries.size() == 1; }), "old search is in flight");
+    controller.searchSongs(QStringLiteral("new & + 中文"));
+    controller.loadMoreSongs();
+    check(waitUntil([&] { return controller.songs().size() == 1; }), "new search finishes before old search");
+    QTest::qWait(400);
+    check(server.songQueries.size() == 2 && controller.songs().first().toMap().value("id").toLongLong() == 201,
+          "stale page cannot replace new search and duplicate load is suppressed");
+    check(server.songQueries.last().queryItemValue("keyword", QUrl::FullyDecoded) == QStringLiteral("new & + 中文"),
+          "paged query preserves Unicode and reserved characters");
+    server.failNextPage = true;
+    controller.loadMoreSongs();
+    check(waitUntil([&] { return controller.errorMessage() == "page failed"; }), "page failure is reported");
+    controller.clearError();
+    controller.loadMoreSongs();
+    check(waitUntil([&] { return controller.songs().size() == 2; }), "failed page releases loading and retries same page");
+    check(server.songQueries.last().queryItemValue("pageNum") == "2" && !controller.hasMoreSongs(),
+          "cursor advances only after success and stops at total");
+    check(controller.songForId(202).value("id").toLongLong() == 202, "page response populates song index");
+    server.pagingScenario = false;
+    controller.searchSongs({});
+    check(waitUntil([&] { return controller.songs().size() == 3; }), "normal library restored after pagination scenario");
+    controller.addToLocalQueue(999);
+    controller.nextSong();
+    check(waitUntil([&] { return server.delayedSongRequests == 1; }), "uncached local track detail is in flight");
+    controller.playSong(server.song(2).toVariantMap());
+    QTest::qWait(400);
+    check(controller.player()->song().value("id").toLongLong() == 2,
+          "late detail response cannot replace a newer playback selection");
+    controller.player()->stop();
+    while (!controller.localQueue().isEmpty()) controller.removeQueueSong(0);
     controller.addToLocalQueue(1); controller.addToLocalQueue(2); controller.addToLocalQueue(3);
     controller.playSong(server.song(1).toVariantMap());
     check(waitUntil([&] { return !controller.player()->loading() && controller.player()->duration() > 0; }), "real audio resource downloaded and loaded");
@@ -447,6 +511,16 @@ int main(int argc, char **argv) {
         }
     }
     check(scriptErrors == 0, "UI interactions without QML script errors");
+    server.pagingScenario = true;
+    const int requestsBeforeLogout = server.songQueries.size();
+    controller.searchSongs("old");
+    check(waitUntil([&] { return server.songQueries.size() > requestsBeforeLogout; }), "logout has an in-flight page");
+    controller.clearError();
     controller.logout();
+    QTest::qWait(400);
+    check(!controller.authenticated() && controller.songs().isEmpty() && controller.localQueue().isEmpty()
+          && controller.songForId(202).isEmpty() && !controller.favoriteBusy() && !controller.playlistCreationBusy(),
+          "logout resets account state and rejects late response");
+    check(controller.errorMessage().isEmpty(), "session cancellation does not surface network error");
     return ok ? 0 : 1;
 }

@@ -7,6 +7,7 @@ Rectangle {
     id: root
     height: 100
     color: Theme.surface
+    // 仅控制队列抽屉展示；播放、进度和加载状态始终绑定 player。
     property bool queueOpen: false
     signal openQueue()
     signal openLyrics()
@@ -17,19 +18,35 @@ Rectangle {
     Rectangle { width: parent.width; height: 1; color: Theme.border }
     RowLayout {
         anchors.fill: parent; anchors.leftMargin: 22; anchors.rightMargin: 22; spacing: 16
-        Rectangle {
-            Layout.preferredWidth: 62; Layout.preferredHeight: 62; radius: 11; color: Theme.secondary; clip: true
-            SvgIcon { anchors.centerIn: parent; name: "music-note"; iconSize: 26; color: Theme.iconAccent }
-            Image {
-                anchors.fill: parent; fillMode: Image.PreserveAspectCrop
-                source: appController.covers[String(appController.player.song.id)] || ""
-                visible: status === Image.Ready
+        RowLayout {
+            Layout.preferredWidth: 288
+            spacing: 16
+            Rectangle {
+                Layout.preferredWidth: 62; Layout.preferredHeight: 62; radius: 11; color: Theme.secondary; clip: true
+                SvgIcon { anchors.centerIn: parent; name: "music-note"; iconSize: 26; color: Theme.iconAccent }
+                Image {
+                    anchors.fill: parent; fillMode: Image.PreserveAspectCrop
+                    source: appController.covers[String(appController.player.song.id)] || ""
+                    visible: status === Image.Ready
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    color: "#79000000"
+                    opacity: artHover.hovered ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.colorTransition } }
+                    SvgIcon { anchors.centerIn: parent; name: "expand"; color: "white"; iconSize: 23 }
+                }
+                HoverHandler { id: artHover }
             }
-        }
-        ColumnLayout {
-            Layout.preferredWidth: 210
-            Text { text: appController.player.song.title || "选择一首歌开始播放"; color: Theme.text; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true }
-            Text { text: appController.player.song.artist || "Futari Music"; color: Theme.muted; font.pixelSize: 12 }
+            ColumnLayout {
+                Layout.preferredWidth: 210
+                Text { text: appController.player.song.title || "选择一首歌开始播放"; color: Theme.text; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { text: appController.player.song.artist || "Futari Music"; color: Theme.muted; font.pixelSize: 12 }
+            }
+            HoverHandler { id: detailsHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: root.openLyrics() }
+            ToolTip.visible: detailsHover.hovered
+            ToolTip.text: "展开歌曲详情与歌词"
         }
         Item { Layout.fillWidth: true }
         ColumnLayout {
@@ -58,6 +75,19 @@ Rectangle {
         FutariToolButton { iconName: "lyrics"; onClicked: root.openLyrics(); ToolTip.visible: hovered; ToolTip.text: "歌词" }
         FutariToolButton { iconName: "queue"; onClicked: root.openQueue(); ToolTip.visible: hovered; ToolTip.text: "播放队列" }
         SvgIcon { name: "volume"; color: Theme.iconSecondary; iconSize: 18 }
-        Slider { Layout.preferredWidth: 85; from: 0; to: 1; value: appController.player.volume; onMoved: appController.player.volume = value }
+        Slider {
+            Layout.preferredWidth: 85
+            from: 0
+            to: 1
+            value: appController.player.volume
+            onMoved: appController.player.volume = value
+        }
+        Text {
+            text: Math.round(appController.player.volume * 100) + "%"
+            color: Theme.muted
+            font.pixelSize: 12
+            horizontalAlignment: Text.AlignRight
+            Layout.preferredWidth: 34
+        }
     }
 }

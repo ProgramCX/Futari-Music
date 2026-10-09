@@ -6,8 +6,10 @@ import "../components"
 
 Item {
     id: root
+    // 对话框待确认的目标，尚未提交业务操作；实际删除锁由 roomDeletionBusy 提供。
     property int pendingDeleteId: 0
     property string pendingDeleteName: ""
+    readonly property int currentRoomId: appController.roomState.room ? Number(appController.roomState.room.id) : 0
     function confirmDelete(id, name) {
         root.pendingDeleteId = id
         root.pendingDeleteName = name
@@ -46,7 +48,14 @@ Item {
                                     Text { text: (modelData.memberCount || 0) + " 人在听"; color: Theme.muted; font.pixelSize: 12 }
                                 }
                                 Item { Layout.fillWidth: true }
-                                FutariButton { text: "加入"; onClicked: appController.joinRoom(modelData.id) }
+                                FutariButton {
+                                    text: root.currentRoomId === Number(modelData.id) ? "离开房间" : root.currentRoomId ? "已在其他房间" : "加入"
+                                    enabled: root.currentRoomId === Number(modelData.id) || !root.currentRoomId
+                                    onClicked: {
+                                        if (root.currentRoomId === Number(modelData.id)) appController.leaveRoom()
+                                        else appController.joinRoom(modelData.id)
+                                    }
+                                }
                                 FutariToolButton {
                                     visible: appController.canDeleteRoom(modelData.id); enabled: !appController.roomDeletionBusy
                                     iconName: "remove"; ToolTip.visible: hovered; ToolTip.text: "解散此房间"
@@ -65,7 +74,7 @@ Item {
                     Text { text: "房间成员"; font.pixelSize: 19; font.bold: true; color: Theme.text }
                     Text { text: appController.canControl ? "你可以控制播放" : "房主尚未授予播放控制权"; color: Theme.accent; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     ListView {
-                        Layout.fillWidth: true; Layout.preferredHeight: Math.min(130, contentHeight); clip: true
+                        Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 80; clip: true
                         model: appController.roomState.members || []
                         delegate: RowLayout {
                             width: ListView.view.width; height: 42
@@ -77,12 +86,6 @@ Item {
                             }
                         }
                     }
-                    QueueDrawer {
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        roomQueue: true; showModePicker: false
-                        visible: !!appController.roomState.room
-                    }
-                    Item { Layout.fillHeight: true; visible: !appController.roomState.room }
                 }
             }
         }
