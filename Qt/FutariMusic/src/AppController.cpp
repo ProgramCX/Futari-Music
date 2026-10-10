@@ -5,6 +5,7 @@
 AppController::AppController(QObject* parent)
     : QObject(parent),
       m_api(this),
+      m_coverCompletion(&m_api, this),
       m_metadataReader(this),
       m_transfers(this),
       m_player(&m_api, this),
@@ -26,6 +27,14 @@ void AppController::restorePreferences() {
 }
 
 void AppController::setupConnections() {
+    connect(&m_coverCompletion, &CoverCompletionController::errorOccurred, this, &AppController::setError);
+    connect(this, &AppController::sessionChanged, this,
+            [this] { m_coverCompletion.reset(authenticated() && admin()); });
+    connect(this, &AppController::serverUrlChanged, this,
+            [this] { m_coverCompletion.reset(authenticated() && admin()); });
+    connect(&m_coverCompletion, &CoverCompletionController::completionFinished, this,
+            &AppController::onCoversCompleted);
+    connect(this, &AppController::roomStateChanged, this, &AppController::playbackModeChanged);
     connect(&m_player, &AudioPlayer::volumeChanged, this,
             [this] { m_settings.setValue("playerVolume", m_player.volume()); });
     connect(&m_api, &ApiClient::errorOccurred, this, &AppController::setError);
@@ -45,9 +54,7 @@ void AppController::setupConnections() {
     connect(&m_player, &AudioPlayer::errorOccurred, this, &AppController::setError);
     connect(&m_player, &AudioPlayer::songChanged, this,
             [this] { loadLyrics(m_player.song().value("id").toLongLong()); });
-    connect(&m_player, &AudioPlayer::reachedEnd, this, [this] {
-        if (!m_session.roomId || roomOwner()) nextSong();
-    });
+    connect(&m_player, &AudioPlayer::reachedEnd, this, &AppController::onTrackEnded);
 }
 
 void AppController::setupSocket() {

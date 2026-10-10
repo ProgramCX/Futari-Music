@@ -1,6 +1,9 @@
 package com.chengxu.futari.song.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.chengxu.futari.song.service.impl.CoverFiles.CoverPayload;
+import static com.chengxu.futari.song.service.impl.CoverFiles.readCover;
+import static com.chengxu.futari.song.service.impl.CoverFiles.storeCover;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.chengxu.futari.common.error.BizException;
 import com.chengxu.futari.common.error.ErrorCode;
@@ -46,7 +49,6 @@ public class SongServiceImpl implements SongService {
     private static final Set<String> FORMATS = Set.of("mp3", "flac", "aac", "ogg", "wav", "m4a");
     private static final Set<String> LYRIC_FORMATS = Set.of("lrc", "txt");
     private static final long MAX_LYRICS_BYTES = 256L * 1024;
-    private static final long MAX_COVER_BYTES = 5L * 1024 * 1024;
     private static final int MAX_DURATION_MS = 24 * 60 * 60 * 1000;
     private final SongMapper mapper;
     private final AlbumService albumService;
@@ -306,34 +308,6 @@ public class SongServiceImpl implements SongService {
         } catch (java.io.IOException ex) { Files.deleteIfExists(temporary); throw ex; }
         return new AudioPayload(HexFormat.of().formatHex(digest.digest()), temporary);
     }
-    private CoverPayload readCover(MultipartFile file) {
-        if (file == null) return null;
-        if (file.isEmpty()) throw new BizException(ErrorCode.SONG_COVER_FORMAT);
-        if (file.getSize() > MAX_COVER_BYTES) throw new BizException(ErrorCode.SONG_COVER_SIZE);
-        try {
-            byte[] bytes = file.getBytes();
-            if (bytes.length > MAX_COVER_BYTES) throw new BizException(ErrorCode.SONG_COVER_SIZE);
-            String name = extension(file);
-            String format;
-            if (("jpg".equals(name) || "jpeg".equals(name)) && bytes.length >= 3 && (bytes[0] & 255) == 255 && (bytes[1] & 255) == 216 && (bytes[2] & 255) == 255) format = "jpg";
-            else if ("png".equals(name) && bytes.length >= 8 && bytes[0] == (byte) 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A) format = "png";
-            else if ("webp".equals(name) && bytes.length >= 12 && bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') format = "webp";
-            else throw new BizException(ErrorCode.SONG_COVER_FORMAT);
-            return new CoverPayload(bytes, HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)), format);
-        } catch (NoSuchAlgorithmException | java.io.IOException ex) { throw new BizException(ErrorCode.SONG_STORAGE); }
-    }
-    private void storeCover(Path directory, CoverPayload cover) throws java.io.IOException {
-        Path covers = directory.resolve("covers");
-        Files.createDirectories(covers);
-        Path target = covers.resolve(cover.hash() + "." + cover.format());
-        if (Files.exists(target)) return;
-        Path temporary = Files.createTempFile(covers, "cover-", ".tmp");
-        try {
-            Files.write(temporary, cover.bytes());
-            try { Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE); }
-            catch (FileAlreadyExistsException ex) { Files.deleteIfExists(temporary); }
-        } finally { Files.deleteIfExists(temporary); }
-    }
     private String extension(MultipartFile file) {
         String name = file.getOriginalFilename();
         int dot = name == null ? -1 : name.lastIndexOf('.');
@@ -341,6 +315,5 @@ public class SongServiceImpl implements SongService {
     }
     private String blankToNull(String value) { return value == null || value.isBlank() ? null : value; }
     private boolean invalidDuration(Integer durationMs) { return durationMs != null && (durationMs < 0 || durationMs > MAX_DURATION_MS); }
-    private record CoverPayload(byte[] bytes, String hash, String format) { }
     private record AudioPayload(String hash, Path temporary) { }
 }

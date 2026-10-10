@@ -19,7 +19,10 @@ public interface RoomService {
     void requireMember(Long userId, Long roomId);
     void requireController(Long userId, Long roomId);
     PlaybackState playback(Long roomId);
+    PlaybackState setPlaybackMode(Long userId, Long roomId, PlaybackMode mode);
+    void trackEnded(Long userId, Long roomId, Long songId, Long timestamp);
     PlaybackState control(Long userId, Long roomId, String type, Long songId, Long positionMs);
     List<Long> updatePlaylist(Long userId, Long roomId, List<Long> songIds);
     void refreshPresence(Long userId);
+    void moveQueueSong(Long userId, Long roomId, Long songId, Long beforeId);
 }

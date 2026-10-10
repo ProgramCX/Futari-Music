@@ -1,6 +1,9 @@
 package com.chengxu.futari.song.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.chengxu.futari.song.dto.CoverCandidateResponse;
 import com.chengxu.futari.song.entity.Song;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -9,6 +12,16 @@ import org.apache.ibatis.annotations.Update;
 
 /** 歌曲数据访问。 @author Futari */
 @Mapper public interface SongMapper extends BaseMapper<Song> {
+    @Select("SELECT s.id, s.title, s.artist, s.album_id, a.name AS album_name, "
+            + "(s.cover_hash IS NULL OR s.cover_hash = '') AS song_missing, "
+            + "(a.id IS NOT NULL AND (a.cover_hash IS NULL OR a.cover_hash = '')) AS album_missing "
+            + "FROM song s LEFT JOIN album a ON a.id = s.album_id AND a.deleted = 0 "
+            + "WHERE s.deleted = 0 AND "
+            + "(s.cover_hash IS NULL OR s.cover_hash = '' OR "
+            + "(a.id IS NOT NULL AND (a.cover_hash IS NULL OR a.cover_hash = ''))) "
+            + "ORDER BY s.id")
+    IPage<CoverCandidateResponse> selectCoverCandidates(Page<CoverCandidateResponse> page);
+
     @Select("SELECT lyrics FROM song WHERE id = #{id} AND deleted = 0")
     String selectLyrics(@Param("id") Long id);
 

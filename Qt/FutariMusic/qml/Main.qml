@@ -220,7 +220,7 @@ ApplicationWindow {
                         Layout.fillWidth: true; Layout.fillHeight: true; spacing: 0
                         StackLayout {
                             Layout.fillWidth: true; Layout.fillHeight: true
-                            currentIndex: ({library:0, rooms:1, partners:2, playlists:3, serverPlaylists:3, messages:4, lyrics:5, admin:6, account:7, songEdit:8, transfers:9, settings:10})[window.currentPage] ?? 0
+                            currentIndex: ({library:0, rooms:1, partners:2, playlists:3, serverPlaylists:3, messages:4, lyrics:5, admin:6, account:7, songEdit:8, transfers:9, settings:10, tools:11})[window.currentPage] ?? 0
                             LibraryPage {
                                 onTransfersRequested: window.navigate("transfers")
                                 onEditSongRequested: song => {
@@ -239,6 +239,7 @@ ApplicationWindow {
                             SongEditPage { song: window.editingSong; onBackRequested: window.navigate("library") }
                             TransferPage {}
                             SettingsPage {}
+                            ManagementToolsPage {}
                         }
                     }
                     PlayerBar {

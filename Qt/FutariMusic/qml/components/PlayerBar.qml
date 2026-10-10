@@ -73,6 +73,22 @@ Rectangle {
         }
         Item { Layout.fillWidth: true }
         FutariToolButton { iconName: "lyrics"; onClicked: root.openLyrics(); ToolTip.visible: hovered; ToolTip.text: "歌词" }
+        FutariToolButton {
+            id: modeButton
+            iconName: appController.playbackMode === "REPEAT_ONE" ? "repeat-one" : appController.playbackMode === "SHUFFLE" ? "shuffle" : "sequential"
+            enabled: !appController.roomState.room || appController.canControl
+            ToolTip.visible: hovered
+            ToolTip.text: (appController.roomState.room ? "房间 · " : "") + (appController.playbackMode === "REPEAT_ONE" ? "单曲循环" : appController.playbackMode === "SHUFFLE" ? "随机播放" : "顺序播放")
+            Accessible.name: ToolTip.text
+            onClicked: modeMenu.popup()
+            FutariMenu {
+                id: modeMenu
+                y: -height
+                FutariMenuItem { text: "顺序播放"; checkable: true; checked: appController.playbackMode === "SEQUENTIAL"; onTriggered: appController.setPlaybackMode("SEQUENTIAL") }
+                FutariMenuItem { text: "单曲循环"; checkable: true; checked: appController.playbackMode === "REPEAT_ONE"; onTriggered: appController.setPlaybackMode("REPEAT_ONE") }
+                FutariMenuItem { text: "随机播放"; checkable: true; checked: appController.playbackMode === "SHUFFLE"; onTriggered: appController.setPlaybackMode("SHUFFLE") }
+            }
+        }
         FutariToolButton { iconName: "queue"; onClicked: root.openQueue(); ToolTip.visible: hovered; ToolTip.text: "播放队列" }
         SvgIcon { name: "volume"; color: Theme.iconSecondary; iconSize: 18 }
         Slider {

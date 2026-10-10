@@ -115,9 +115,9 @@ void AppController::refreshRoomState() {
 void AppController::setRoomState(const QJsonObject& state) {
     // REST 全量状态可能晚于播放广播返回，保留更新的播放位置。
     const QJsonObject currentPlayback = m_session.roomState.value("playback").toObject();
+    const bool stalePlayback = isStalePlayback(state.value("playback").toObject());
     m_session.roomState = state;
-    if (currentPlayback.value("serverTimestamp").toInteger() >
-        state.value("playback").toObject().value("serverTimestamp").toInteger())
+    if (stalePlayback)
         m_session.roomState.insert("playback", currentPlayback);
     emit roomStateChanged();
     applyPlayback(m_session.roomState.value("playback").toObject());

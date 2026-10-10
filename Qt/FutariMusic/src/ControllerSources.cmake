@@ -1,5 +1,7 @@
 # QML-facing facade; implementations are grouped by business domain.
 set(FUTARI_CONTROLLER_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/CoverCompletionController.h
+    ${CMAKE_CURRENT_LIST_DIR}/CoverCompletionController.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AppController.h
     ${CMAKE_CURRENT_LIST_DIR}/AppController.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AppControllerLibrary.cpp

@@ -212,14 +212,13 @@ public class RoomServiceImpl implements RoomService {
             case WsTypes.NEXT -> {
                 List<Long> list = playlist(roomId);
                 if (list.isEmpty()) throw new BizException(ErrorCode.ROOM_SONG);
-                int index = list.indexOf(state.getCurrentSongId());
-                state.setCurrentSongId(list.get((index + 1) % list.size()));
+                state.setCurrentSongId(nextSong(list, state));
                 state.setPositionMs(0L);
                 state.setStatus("playing");
             }
             default -> throw new BizException(ErrorCode.PARAM);
         }
-        state.setServerTimestamp(now);
+        state.setServerTimestamp(Math.max(now, state.getServerTimestamp() + 1));
         savePlayback(roomId, state);
         publisher.broadcast(roomId, type, state);
         return state;
@@ -251,7 +250,61 @@ public class RoomServiceImpl implements RoomService {
         return raw == null ? List.of() : raw.stream().map(Long::valueOf).toList();
     }
 
+    public synchronized void moveQueueSong(Long userId, Long roomId, Long songId, Long beforeId) {
+        requireController(userId, roomId);
+        List<Long> ids = new ArrayList<>(playlist(roomId));
+        if (songId == null || beforeId == null || songId.equals(beforeId) || !ids.contains(songId)
+                || (beforeId != 0 && !ids.contains(beforeId))) throw new BizException(ErrorCode.PARAM);
+        ids.remove(songId);
+        ids.add(beforeId == 0 ? ids.size() : ids.indexOf(beforeId), songId);
+        updatePlaylist(userId, roomId, ids);
+    }
+
+    public synchronized PlaybackState setPlaybackMode(Long userId, Long roomId, PlaybackMode mode) {
+        requireController(userId, roomId);
+        if (mode == null) throw new BizException(ErrorCode.PARAM);
+        PlaybackState state = playback(roomId);
+        state.setMode(mode);
+        // 模式变化不重置播放时钟，否则其他客户端会跳回上次同步的位置。
+        savePlayback(roomId, state);
+        publisher.broadcast(roomId, WsTypes.PLAYBACK_MODE, state);
+        return state;
+    }
+
+    public synchronized void trackEnded(Long userId, Long roomId, Long songId, Long timestamp) {
+        requireController(userId, roomId);
+        if (!require(roomId).getOwnerId().equals(userId)) throw new BizException(ErrorCode.ROOM_CONTROL);
+        PlaybackState state = playback(roomId);
+        // 对同一轮播放只推进一次；旧音频的结束回调不得跳过新歌或新一轮循环。
+        if (!java.util.Objects.equals(songId, state.getCurrentSongId())
+                || !java.util.Objects.equals(timestamp, state.getServerTimestamp())
+                || !"playing".equals(state.getStatus())) return;
+        List<Long> list = playlist(roomId);
+        if (state.getMode() == PlaybackMode.SEQUENTIAL && list.indexOf(songId) == list.size() - 1) {
+            state.setStatus("paused");
+            state.setPositionMs(state.getPositionMs() + Math.max(0, System.currentTimeMillis() - timestamp));
+        } else {
+            if (list.isEmpty()) return;
+            if (state.getMode() != PlaybackMode.REPEAT_ONE) state.setCurrentSongId(nextSong(list, state));
+            state.setPositionMs(0L);
+        }
+        state.setServerTimestamp(Math.max(System.currentTimeMillis(), timestamp + 1));
+        savePlayback(roomId, state);
+        publisher.broadcast(roomId, WsTypes.TRACK_ENDED, state);
+    }
+
+    private Long nextSong(List<Long> list, PlaybackState state) {
+        int index = list.indexOf(state.getCurrentSongId());
+        if (state.getMode() == PlaybackMode.SHUFFLE && list.size() > 1) {
+            // 从其余歌曲中均匀选择，避免连续随机到当前歌曲。
+            int offset = java.util.concurrent.ThreadLocalRandom.current().nextInt(index < 0 ? list.size() : list.size() - 1);
+            return list.get(index < 0 ? offset : (index + 1 + offset) % list.size());
+        }
+        return list.get((index + 1) % list.size());
+    }
+
     private void savePlayback(Long roomId, PlaybackState state) {
+        state.setRevision(state.getRevision() + 1);
         try {
             redis.opsForValue().set(RedisKeys.roomState(roomId), json.writeValueAsString(state), ACTIVE_TTL);
         } catch (JsonProcessingException ex) {

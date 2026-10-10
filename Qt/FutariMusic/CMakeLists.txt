@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 project(FutariMusic VERSION 0.2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(FUTARI_CLIENT_VERSION "0.0.1" CACHE STRING "Client version embedded in the executable")
-set(FUTARI_SERVER_COMPAT_VERSION "0.1.0" CACHE STRING "Server compatibility version embedded in the executable")
+set(FUTARI_CLIENT_VERSION "0.1.1" CACHE STRING "Client version embedded in the executable")
+set(FUTARI_SERVER_COMPAT_VERSION "0.2.0" CACHE STRING "Server compatibility version embedded in the executable")
 set(FUTARI_WINDOWS_INSTALL_ARGUMENTS "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" CACHE STRING "Silent installer arguments for Windows update EXE packages")
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network WebSockets Widgets Svg)
 qt_standard_project_setup(REQUIRES 6.8)
@@ -54,6 +54,8 @@ qt_add_qml_module(appFutariMusic
         qml/pages/MessagesPage.qml
         qml/pages/LyricsPage.qml
         qml/pages/AdminPage.qml
+        qml/pages/ManagementToolsPage.qml
+        qml/pages/CoverCompletionDialog.qml
         qml/pages/AccountPage.qml
         qml/pages/SongEditPage.qml
         qml/pages/TransferPage.qml
@@ -61,6 +63,10 @@ qt_add_qml_module(appFutariMusic
         qml/pages/SingleUploadDialog.qml
         qml/pages/BatchUploadDialog.qml
     RESOURCES
+        qml/assets/icons/drag-handle.svg
+        qml/assets/icons/sequential.svg
+        qml/assets/icons/repeat-one.svg
+        qml/assets/icons/shuffle.svg
         qml/assets/icons/music-note.svg
         qml/assets/icons/room.svg
         qml/assets/icons/heart.svg

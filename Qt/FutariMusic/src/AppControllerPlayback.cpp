@@ -1,4 +1,5 @@
 #include <QDateTime>
+#include <QRandomGenerator>
 
 #include "AppController.h"
 
@@ -91,18 +92,82 @@ void AppController::nextSong() {
         if (canControl()) sendSocket("NEXT", {});
         return;
     }
-    const qint64 current = m_player.song().value("id").toLongLong();
-    if (!current && !m_session.localQueue.isEmpty()) {
-        playLocalById(m_session.localQueue.first().toInteger());
+    advanceLocalQueue(AdvanceReason::Manual);
+}
+
+QString AppController::playbackMode() const {
+    return m_session.roomId ? m_session.roomState.value("playback")
+                                  .toObject()
+                                  .value("mode")
+                                  .toString("SEQUENTIAL")
+                            : m_settings.value("playbackMode", "SEQUENTIAL").toString();
+}
+
+void AppController::setPlaybackMode(const QString& mode) {
+    if (mode != "SEQUENTIAL" && mode != "REPEAT_ONE" && mode != "SHUFFLE") return;
+    if (m_session.roomId) {
+        // 房间模式以服务端广播为准；离开房间仍保留原来的本地偏好。
+        if (canControl()) sendSocket("PLAYBACK_MODE", {{"mode", mode}});
         return;
     }
-    for (int index = 0; index < m_session.localQueue.size(); ++index) {
-        if (m_session.localQueue.at(index).toInteger() == current) {
-            if (index + 1 < m_session.localQueue.size())
-                playLocalById(m_session.localQueue.at(index + 1).toInteger());
-            return;
-        }
+    m_settings.setValue("playbackMode", mode);
+    emit playbackModeChanged();
+}
+
+void AppController::onTrackEnded() {
+    if (!m_session.roomId) {
+        advanceLocalQueue(AdvanceReason::TrackEnded);
+        return;
     }
+    if (!roomOwner()) return;
+    const auto playback = m_session.roomState.value("playback").toObject();
+    sendSocket("TRACK_ENDED", {{"songId", m_player.song().value("id").toLongLong()},
+                               {"timestamp", playback.value("serverTimestamp")}});
+}
+
+void AppController::advanceLocalQueue(AdvanceReason reason) {
+    const QJsonArray& ids = m_session.localQueue;
+    if (ids.isEmpty()) return;
+    const qint64 current = m_player.song().value("id").toLongLong();
+    int index = -1;
+    for (int i = 0; i < ids.size(); ++i)
+        if (ids.at(i).toInteger() == current) index = i;
+    if (reason == AdvanceReason::TrackEnded && playbackMode() == "REPEAT_ONE" && index >= 0) {
+        playLocalById(current);
+        return;
+    }
+    if (playbackMode() == "SHUFFLE" && ids.size() > 1) {
+        const int choices = index < 0 ? ids.size() : ids.size() - 1;
+        const int offset = QRandomGenerator::global()->bounded(choices);
+        playLocalById(ids.at(index < 0 ? offset : (index + 1 + offset) % ids.size()).toInteger());
+        return;
+    }
+    // 顺序播放自然结束后停止；手动下一首允许回到队首。
+    if (reason == AdvanceReason::TrackEnded && index == ids.size() - 1) return;
+    playLocalById(ids.at((index + 1) % ids.size()).toInteger());
+}
+
+void AppController::moveQueueBefore(qint64 songId, qint64 beforeId) {
+    if (songId == beforeId || (m_session.roomId && !canControl())) return;
+    QJsonArray ids =
+        m_session.roomId ? m_session.roomState.value("songIds").toArray() : m_session.localQueue;
+    if (!ids.contains(songId) || (beforeId && !ids.contains(beforeId))) return;
+    if (m_session.roomId) {
+        // 发送 ID 相对移动，由服务端合并当前队列，避免拖动期间的新增歌曲被覆盖。
+        sendSocket("QUEUE_MOVE", {{"songId", songId}, {"beforeId", beforeId}});
+        return;
+    }
+    for (int i = 0; i < ids.size(); ++i)
+        if (ids.at(i).toInteger() == songId) {
+            ids.removeAt(i);
+            break;
+        }
+    int target = ids.size();
+    for (int i = 0; i < ids.size(); ++i)
+        if (ids.at(i).toInteger() == beforeId) target = i;
+    ids.insert(target, songId);
+    m_session.localQueue = ids;
+    emit localQueueChanged();
 }
 
 void AppController::previousSong() {
@@ -252,19 +317,12 @@ void AppController::publishQueue(const QJsonArray& ids) {
 
 void AppController::moveQueueSong(int index, int direction) {
     if (m_session.roomId && !canControl()) return;
-    QJsonArray ids =
+    const QJsonArray ids =
         m_session.roomId ? m_session.roomState.value("songIds").toArray() : m_session.localQueue;
     const int target = index + direction;
     if (index < 0 || index >= ids.size() || target < 0 || target >= ids.size()) return;
-    const QJsonValue song = ids.at(index);
-    ids.replace(index, ids.at(target));
-    ids.replace(target, song);
-    if (m_session.roomId)
-        publishQueue(ids);
-    else {
-        m_session.localQueue = ids;
-        emit localQueueChanged();
-    }
+    const int before = target > index ? target + 1 : target;
+    moveQueueBefore(ids.at(index).toInteger(), before < ids.size() ? ids.at(before).toInteger() : 0);
 }
 
 void AppController::removeQueueSong(int index) {
@@ -335,4 +393,11 @@ void AppController::applyPlayback(const QJsonObject& playback) {
         else if (!playing && m_player.playing())
             m_player.pause();
     }
+}
+
+bool AppController::isStalePlayback(const QJsonObject& playback) const {
+    const auto current = m_session.roomState.value("playback").toObject();
+    // 模式变化保留播放基准时间，因此不能仅通过时间戳比较快照的新旧。
+    return current.value("revision").toInteger() > playback.value("revision").toInteger() ||
+           current.value("serverTimestamp").toInteger() > playback.value("serverTimestamp").toInteger();
 }

@@ -151,6 +151,27 @@ void AppController::fetchCovers() {
     for (const QJsonValue& value : m_session.songs.items) fetchCover(value.toObject());
 }
 
+void AppController::onCoversCompleted() {
+    invalidateCoverCache();
+    searchSongs(m_session.songs.keyword);
+    refreshAlbums();
+    refreshUploadedSongs();
+    refreshPlaylists();
+    refreshServerPlaylists();
+    const qint64 songId = m_player.song().value("id").toLongLong();
+    if (songId <= 0) return;
+    const auto token = m_session.coverRequests.token();
+    // 正在播放的歌曲可能不在当前分页内，单独刷新封面，不重启音频。
+    m_api.request("GET", "api/songs/" + QString::number(songId), {},
+                  [this, token](const QJsonValue& value) {
+                      if (token.expired()) return;
+                      const auto song = value.toObject();
+                      m_session.songCache.insert(song.value("id").toInteger(), song);
+                      fetchCover(song);
+                      emit songsChanged();
+                  });
+}
+
 void AppController::fetchCover(const QJsonObject& song) {
     const QString directory =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/covers";

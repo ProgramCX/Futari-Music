@@ -49,7 +49,15 @@ public class SyncWebSocketHandler extends TextWebSocketHandler {
             String room = redis.opsForValue().get(RedisKeys.userRoom(userId));
             if (room == null) throw new BizException(ErrorCode.ROOM_NOT_MEMBER);
             Long roomId = Long.valueOf(room);
-            if (WsTypes.PLAYLIST_UPDATE.equals(type)) {
+            if (WsTypes.QUEUE_MOVE.equals(type)) {
+                rooms.moveQueueSong(userId, roomId, data.path("songId").asLong(), data.path("beforeId").asLong());
+            } else if (WsTypes.PLAYBACK_MODE.equals(type)) {
+                rooms.setPlaybackMode(userId, roomId,
+                        com.chengxu.futari.room.dto.PlaybackMode.valueOf(data.path("mode").asText()));
+            } else if (WsTypes.TRACK_ENDED.equals(type)) {
+                rooms.trackEnded(userId, roomId, data.path("songId").asLong(),
+                        data.path("timestamp").asLong());
+            } else if (WsTypes.PLAYLIST_UPDATE.equals(type)) {
                 JsonNode values = data.path("songIds");
                 if (!values.isArray()) throw new BizException(ErrorCode.PARAM);
                 List<Long> songIds = new java.util.ArrayList<>();

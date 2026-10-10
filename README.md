@@ -82,7 +82,7 @@ Docker Compose 不适用时，需要 JDK 17、MySQL 8 和 Redis。新数据库�
 
     mysql -u root -p < SpringBoot/sql/schema.sql
 
-复制 SpringBoot/.env.example 为 SpringBoot/.env，填写数据库、Redis、JWT 和管理员配置，并将 SPRING_PROFILES_ACTIVE 设为 prod，然后运行：
+复制 SpringBoot/.env.example 为 SpringBoot/.env，填写数据库、Redis、JWT 和管理员配置，并将 SPRING_PROFILES_ACTIVE 设为 prod。后端默认监听 8080；需要更换本地端口时，将 SERVER_PORT 改成所需端口，例如 18080，然后运行：
 
     cd SpringBoot
     mvn clean package

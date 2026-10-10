@@ -37,8 +37,9 @@ void AppController::handleSocketMessage(const QString& message) {
         receiveInvite(data);
         return;
     }
-    if (type == "PLAY" || type == "PAUSE" || type == "SEEK" || type == "NEXT" || type == "SYNC") {
-        if (!m_session.roomId) return;
+    if (type == "PLAY" || type == "PAUSE" || type == "SEEK" || type == "NEXT" || type == "SYNC" ||
+        type == "PLAYBACK_MODE" || type == "TRACK_ENDED") {
+        if (!m_session.roomId || isStalePlayback(data)) return;
         m_session.roomState.insert("playback", data);
         emit roomStateChanged();
         applyPlayback(data);

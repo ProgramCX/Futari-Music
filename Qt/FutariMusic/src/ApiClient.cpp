@@ -58,13 +58,15 @@ QNetworkReply *ApiClient::request(const QByteArray &method, const QString &path,
     return reply;
 }
 
-void ApiClient::upload(const QString &path, QHttpMultiPart *parts, Callback onSuccess) {
+void ApiClient::upload(const QString &path, QHttpMultiPart *parts, Callback onSuccess, ErrorCallback onError) {
     QNetworkRequest request = makeRequest(path);
     setMultipartContentType(request, *parts);
     QNetworkReply *reply = m_network.post(request, parts);
     parts->setParent(reply);
     connect(reply, &QNetworkReply::finished, this,
-            [this, reply, onSuccess = std::move(onSuccess)] { finishJson(reply, onSuccess); });
+            [this, reply, onSuccess = std::move(onSuccess), onError = std::move(onError)] {
+                finishJson(reply, onSuccess, onError);
+            });
 }
 
 void ApiClient::putUpload(const QString &path, QHttpMultiPart *parts, Callback onSuccess) {

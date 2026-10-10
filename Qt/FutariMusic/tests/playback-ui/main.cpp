@@ -1,9 +1,11 @@
 #include "../../src/AppController.h"
+#include "../../src/ClientUpdateManager.h"
 
 #include <QApplication>
 #include <QCryptographicHash>
 #include <QEventLoop>
 #include <QFile>
+#include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QHttpMultiPart>
@@ -69,6 +71,9 @@ public:
     int lyricRequests = 0;
     bool failNextUpload = false;
     int playlistRequests = 0;
+    QString playbackMode = "SEQUENTIAL";
+    qint64 playbackRevision = 0;
+    int coverWrites = 0;
     bool control = true;
     bool activeRoom = false;
     bool roomExists = true;
@@ -139,6 +144,19 @@ public:
                 const auto data = message.value("data").toObject();
                 if (type == "PLAYLIST_UPDATE") { queue = data.value("songIds").toArray(); ++playlistRequests; broadcast(type, queue); }
                 if (type == "PLAY") { current = data.value("songId").toInteger(); broadcast("PLAY", playback()); }
+                if (type == "PLAYBACK_MODE") {
+                    playbackMode = data.value("mode").toString();
+                    ++playbackRevision;
+                    auto state = playback(); state["mode"] = playbackMode; broadcast(type, state);
+                }
+                if (type == "QUEUE_MOVE") {
+                    const auto songId = data.value("songId");
+                    const auto beforeId = data.value("beforeId");
+                    for (int i = 0; i < queue.size(); ++i) if (queue.at(i) == songId) { queue.removeAt(i); break; }
+                    int target = queue.size();
+                    for (int i = 0; i < queue.size(); ++i) if (queue.at(i) == beforeId) target = i;
+                    queue.insert(target, songId); broadcast("PLAYLIST_UPDATE", queue);
+                }
             });
         });
     }
@@ -160,10 +178,18 @@ public:
         }
     }
     QJsonObject song(qint64 id) const { return {{"id", id}, {"title", QString("Song %1").arg(id)}, {"artist", "Singer"}, {"album", "Album"}, {"coverUrl", QJsonValue(QJsonValue::Null)}, {"format", "wav"}, {"hash", QString::fromLatin1(QCryptographicHash::hash(audio, QCryptographicHash::Sha256).toHex())}, {"fileSize", audio.size()}, {"durationMs", 10000}}; }
-    QJsonObject playback() const { return {{"currentSongId", current ? QJsonValue(current) : QJsonValue()}, {"status", "paused"}, {"positionMs", 0}, {"serverTimestamp", QDateTime::currentMSecsSinceEpoch()}}; }
+    QJsonObject playback() const { return {{"mode", playbackMode}, {"revision", playbackRevision}, {"currentSongId", current ? QJsonValue(current) : QJsonValue()}, {"status", "paused"}, {"positionMs", 0}, {"serverTimestamp", QDateTime::currentMSecsSinceEpoch()}}; }
     QJsonObject state() const { return {{"room", QJsonObject{{"id", 7}, {"name", "Room"}, {"ownerId", control ? 1 : 2}}}, {"songIds", queue}, {"controllerIds", QJsonArray{}}, {"members", QJsonArray{}}, {"playback", playback()}}; }
     void broadcast(const QString &type, const QJsonValue &data) { if (peer) peer->sendTextMessage(QString::fromUtf8(QJsonDocument(QJsonObject{{"type", type}, {"data", data}}).toJson(QJsonDocument::Compact))); }
     QJsonValue route(const QByteArray &method, const QString &path, const QJsonObject &body) {
+        if (path == "/api/cover-completion/songs") return QJsonObject{{"total", 3}, {"list", QJsonArray{
+            QJsonObject{{"id", 1}, {"title", "Song-1"}, {"artist", "Singer"}, {"songMissing", true}, {"albumMissing", true}, {"albumId", 10}},
+            QJsonObject{{"id", 2}, {"title", "Song 2"}, {"artist", "Singer"}, {"songMissing", true}, {"albumMissing", true}, {"albumId", 10}},
+            QJsonObject{{"id", 3}, {"title", "Missing"}, {"artist", "Singer"}, {"songMissing", true}}}}};
+        if (path == "/api/cover-completion/albums") return QJsonObject{{"total", 1}, {"list", QJsonArray{QJsonObject{{"id", 10}, {"name", "Album"}, {"artist", "Singer"}}}}};
+        if (path.startsWith("/api/cover-completion/") && method == "POST") {
+            ++coverWrites; return QJsonObject{{"applied", true}};
+        }
         if (path == "/api/auth/login") return QJsonObject{{"userId", 1}, {"token", "test-session"}, {"role", "ADMIN"}, {"canUpload", true}};
         if (path == "/api/songs") return QJsonObject{{"total", 3}, {"list", QJsonArray{song(1), song(2), song(3)}}};
         if (path == "/api/rooms/current") return activeRoom ? QJsonValue(state()) : QJsonValue(QJsonObject{});
@@ -230,6 +256,21 @@ int main(int argc, char **argv) {
     check(isolatedSettings.fileName().startsWith(directory.path()), "settings use temporary INI storage instead of Windows registry");
     controller.login("test", "test-password");
     check(waitUntil([&] { return controller.authenticated() && server.peer && controller.songs().size() == 3; }), "real client HTTP login and WS connection");
+    QDir().mkpath(directory.path() + "/covers");
+    QImage coverImage(20, 20, QImage::Format_RGB32); coverImage.fill(Qt::green);
+    coverImage.save(directory.path() + "/covers/Song-1 - Singer.png");
+    coverImage.save(directory.path() + "/covers/Singer - Song 2.png");
+    auto* completion = controller.coverCompletion();
+    completion->scan(QUrl::fromLocalFile(directory.path() + "/covers"));
+    check(waitUntil([&] { return !completion->busy() && completion->rows().size() == 4; }), "cover candidates loaded from server");
+    check(completion->selectedCount() == 2 && server.coverWrites == 0, "both filename orders match without writing before confirmation");
+    check(completion->rows().last().toMap().value("imageIndex").toInt() == 0, "album cover requires independent selection");
+    completion->selectImage(2, 1); completion->selectImage(3, 2);
+    completion->submit();
+    check(waitUntil([&] { return !completion->busy() && completion->completed() == 4; }), "confirmed covers upload sequentially");
+    check(server.coverWrites == 4 && completion->selectedCount() == 0, "manual corrections and independent album cover are applied once");
+    completion->submit(); check(server.coverWrites == 4, "successful covers are not uploaded twice");
+    check(waitUntil([&] { return controller.songs().size() == 3; }), "library refresh after cover completion settles");
     server.pagingScenario = true;
     controller.searchSongs("old");
     check(waitUntil([&] { return server.songQueries.size() == 1; }), "old search is in flight");
@@ -263,6 +304,16 @@ int main(int argc, char **argv) {
     controller.player()->stop();
     while (!controller.localQueue().isEmpty()) controller.removeQueueSong(0);
     controller.addToLocalQueue(1); controller.addToLocalQueue(2); controller.addToLocalQueue(3);
+    controller.moveQueueBefore(3, 1);
+    check(controller.localQueue() == QVariantList{3LL, 1LL, 2LL}, "drag reorders by insertion rather than swapping distant rows");
+    controller.moveQueueBefore(3, 0);
+    check(controller.localQueue() == QVariantList{1LL, 2LL, 3LL}, "drag can place a song at queue end");
+    controller.setPlaybackMode("REPEAT_ONE");
+    check(isolatedSettings.value("playbackMode").toString() == "REPEAT_ONE", "local playback mode is persisted");
+    controller.setPlaybackMode("SHUFFLE");
+    controller.playSong(server.song(1).toVariantMap()); controller.nextSong();
+    check(controller.player()->song().value("id").toLongLong() != 1, "shuffle does not select current song when alternatives exist");
+    controller.setPlaybackMode("SEQUENTIAL");
     controller.playSong(server.song(1).toVariantMap());
     check(waitUntil([&] { return !controller.player()->loading() && controller.player()->duration() > 0; }), "real audio resource downloaded and loaded");
     controller.player()->pause(); controller.seek(1000);
@@ -272,19 +323,30 @@ int main(int argc, char **argv) {
     const QVariantList localBefore = controller.localQueue();
     controller.createRoom("Room");
     check(waitUntil([&] { return !controller.roomState().isEmpty(); }), "join room with separate shared queue");
+    controller.setPlaybackMode("REPEAT_ONE");
+    check(waitUntil([&] { return controller.playbackMode() == "REPEAT_ONE" && server.playbackMode == "REPEAT_ONE"; }), "room playback mode confirmed through WebSocket broadcast");
+    auto stalePlayback = QJsonObject::fromVariantMap(controller.roomState().value("playback").toMap());
+    stalePlayback["revision"] = 0; stalePlayback["mode"] = "SHUFFLE";
+    server.broadcast("SYNC", stalePlayback); QTest::qWait(80);
+    check(controller.playbackMode() == "REPEAT_ONE", "old sync cannot overwrite newer mode with unchanged playback clock");
+    check(isolatedSettings.value("playbackMode").toString() == "SEQUENTIAL", "room mode does not overwrite local preference");
     controller.addToQueue(2);
     check(waitUntil([&] { return server.queue == QJsonArray{2} && controller.roomState().value("songIds").toList() == QVariantList{2LL}; }), "default add targets room via WebSocket");
     controller.playSong(server.song(2).toVariantMap());
     check(waitUntil([&] { return server.current == 2 && controller.roomState().value("playback").toMap().value("currentSongId").toLongLong() == 2; }), "play targets current room");
     controller.playNext(server.song(3).toVariantMap());
     check(waitUntil([&] { return server.queue == QJsonArray{2, 3}; }), "room next track order broadcast");
+    controller.moveQueueBefore(3, 2);
+    check(waitUntil([&] { return server.queue == QJsonArray{3, 2}; }), "room drag sends relative ID move to server");
     check(controller.localQueue() == localBefore, "room operations preserve personal queue");
     server.control = false; controller.refreshRoomState();
     check(waitUntil([&] { return !controller.canControl(); }), "server controls permission");
     const int updates = server.playlistRequests;
     controller.addToRoomQueue(1); controller.playNext(server.song(1).toVariantMap());
+    controller.setPlaybackMode("SHUFFLE");
     QTest::qWait(100);
     check(server.playlistRequests == updates, "unauthorized user cannot edit room queue");
+    check(server.playbackMode == "REPEAT_ONE", "unauthorized user cannot send room mode changes");
     controller.addToQueue(4);
     check(controller.localQueue().contains(4LL) && !server.queue.contains(4), "default add without room permission uses local queue");
     controller.leaveRoom();
@@ -363,10 +425,12 @@ int main(int argc, char **argv) {
     }
     server.uploaded = {}; server.uploadBodies.clear(); server.multipartTypes.clear();
 
+    ClientUpdateManager updateManager;
     QQmlApplicationEngine engine;
     engine.setInitialProperties({{"opacity", 0.0}});
     engine.addImportPath(QCoreApplication::applicationDirPath() + "/imports");
     engine.rootContext()->setContextProperty("appController", &controller);
+    engine.rootContext()->setContextProperty("updateManager", &updateManager);
     int scriptErrors = 0;
     QObject::connect(&engine, &QQmlEngine::warnings, &app, [&](const QList<QQmlError> &warnings) { for (const auto &warning : warnings) { output << warning.toString() << Qt::endl; if (warning.description().contains("Error") || warning.description().contains("Unable to assign")) ++scriptErrors; } });
     engine.load(QUrl::fromLocalFile(QStringLiteral(FUTARI_SOURCE_DIR "/qml/Main.qml")));
@@ -375,6 +439,49 @@ int main(int argc, char **argv) {
     if (!engine.rootObjects().isEmpty()) output << "Root type: " << engine.rootObjects().first()->metaObject()->className() << Qt::endl;
     check(window != nullptr, "full application QML loads");
     if (window) {
+        completion->scan(QUrl::fromLocalFile(directory.path() + "/covers"));
+        check(waitUntil([&] { return !completion->busy() && completion->rows().size() == 4; }), "cover preview is reloadable");
+        auto* coverDialog = window->findChild<QObject*>("coverCompletionDialog");
+        check(coverDialog != nullptr, "cover completion dialog is available");
+        if (coverDialog) {
+            QMetaObject::invokeMethod(coverDialog, "open"); QTest::qWait(250);
+            QQuickItem* choice = nullptr;
+            for (auto* item : visualItems(window->contentItem()))
+                if (item->objectName() == "coverImageChoice2") choice = item;
+            check(choice != nullptr, "unmatched row has a cover selector");
+            if (choice) {
+                QMetaObject::invokeMethod(choice, "activated", Q_ARG(int, 1));
+                check(completion->rows()[2].toMap().value("imageIndex").toInt() == 1,
+                      "UI selection updates the intended row rather than image index row");
+            }
+            for (bool dark : {false, true}) {
+                controller.setDarkMode(dark); QTest::qWait(200);
+                auto preview = window->contentItem()->grabToImage();
+                waitUntil([&] { return !preview->image().isNull(); });
+                preview->image().save(QCoreApplication::applicationDirPath()
+                    + (dark ? "/cover-completion-dark.png" : "/cover-completion-light.png"));
+            }
+            QMetaObject::invokeMethod(coverDialog, "close"); QTest::qWait(200);
+            controller.setDarkMode(false);
+        }
+        while (!controller.localQueue().isEmpty()) controller.removeQueueSong(0);
+        controller.addSongsToLocalQueue({1LL, 2LL, 3LL});
+        window->setProperty("queueVisible", true); QTest::qWait(200);
+        QQuickItem *firstHandle = nullptr, *thirdHandle = nullptr;
+        for (auto* item : visualItems(window->contentItem())) {
+            if (item->isVisible() && item->objectName() == "queueDragHandle0") firstHandle = item;
+            if (item->isVisible() && item->objectName() == "queueDragHandle2") thirdHandle = item;
+        }
+        check(firstHandle && thirdHandle, "queue exposes drag handles");
+        if (firstHandle && thirdHandle) {
+            const auto from = thirdHandle->mapToScene(QPointF(12, 20)).toPoint();
+            const auto to = firstHandle->mapToScene(QPointF(12, 15)).toPoint();
+            QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, from);
+            QTest::mouseMove(window, to, 120);
+            QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, to);
+            check(controller.localQueue() == QVariantList{3LL, 1LL, 2LL}, "mouse drag inserts last song before first");
+        }
+        window->setProperty("queueVisible", false);
         QTest::qWait(600);
         auto grab = window->contentItem()->grabToImage();
         waitUntil([&] { return !grab->image().isNull(); });
@@ -516,11 +623,13 @@ int main(int argc, char **argv) {
     controller.searchSongs("old");
     check(waitUntil([&] { return server.songQueries.size() > requestsBeforeLogout; }), "logout has an in-flight page");
     controller.clearError();
+    completion->scan(QUrl::fromLocalFile(directory.path() + "/covers"));
     controller.logout();
     QTest::qWait(400);
     check(!controller.authenticated() && controller.songs().isEmpty() && controller.localQueue().isEmpty()
           && controller.songForId(202).isEmpty() && !controller.favoriteBusy() && !controller.playlistCreationBusy(),
           "logout resets account state and rejects late response");
     check(controller.errorMessage().isEmpty(), "session cancellation does not surface network error");
+    check(completion->rows().isEmpty() && !completion->busy(), "logout invalidates pending cover scan");
     return ok ? 0 : 1;
 }

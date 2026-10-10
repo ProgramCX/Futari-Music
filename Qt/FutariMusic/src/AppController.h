@@ -11,6 +11,7 @@
 #include <QWebSocket>
 
 #include "ApiClient.h"
+#include "CoverCompletionController.h"
 #include "AudioMetadataReader.h"
 #include "AudioPlayer.h"
 #include "TransferManager.h"
@@ -68,6 +69,8 @@ class AppController final : public QObject {
     Q_PROPERTY(QVariantMap covers READ covers NOTIFY coversChanged)
     Q_PROPERTY(int unreadInvites READ unreadInvites NOTIFY invitesChanged)
     Q_PROPERTY(AudioPlayer* player READ player CONSTANT)
+    Q_PROPERTY(CoverCompletionController* coverCompletion READ coverCompletion CONSTANT)
+    Q_PROPERTY(QString playbackMode READ playbackMode NOTIFY playbackModeChanged)
 public:
     explicit AppController(QObject* parent = nullptr);
     bool authenticated() const { return m_session.authenticated; }
@@ -129,6 +132,7 @@ public:
     QVariantMap covers() const { return m_session.covers; }
     int unreadInvites() const { return m_session.invites.size(); }
     AudioPlayer* player() { return &m_player; }
+    CoverCompletionController* coverCompletion() { return &m_coverCompletion; }
 
     Q_INVOKABLE void login(const QString& username, const QString& password);
     Q_INVOKABLE void registerAccount(const QString& username, const QString& nickname,
@@ -164,6 +168,9 @@ public:
     Q_INVOKABLE void togglePlayback();
     Q_INVOKABLE void seek(qint64 positionMs);
     Q_INVOKABLE void nextSong();
+    QString playbackMode() const;
+    Q_INVOKABLE void setPlaybackMode(const QString& mode);
+    Q_INVOKABLE void moveQueueBefore(qint64 songId, qint64 beforeId);
     Q_INVOKABLE void previousSong();
     Q_INVOKABLE void addToQueue(qint64 songId);
     Q_INVOKABLE void addToLocalQueue(qint64 songId);
@@ -225,6 +232,7 @@ public:
     Q_INVOKABLE void resetPassword(qint64 id, const QString& password);
     Q_INVOKABLE void kickUser(qint64 id);
 signals:
+    void playbackModeChanged();
     void sessionChanged();
     void autoLoginChanged();
     void serverUrlChanged();
@@ -259,6 +267,11 @@ signals:
     void playlistCreationFinished(qint64 songId, bool added);
 
 private:
+    enum class AdvanceReason { Manual, TrackEnded };
+    void onTrackEnded();
+    void advanceLocalQueue(AdvanceReason reason);
+    bool isStalePlayback(const QJsonObject& playback) const;
+    void onCoversCompleted();
     void restorePreferences();
     void setupConnections();
     void setupSocket();
@@ -305,6 +318,7 @@ private:
     void resetSession(QNetworkReply* logoutReply);
     static QString segment(const QString& value);
     ApiClient m_api;
+    CoverCompletionController m_coverCompletion;
     AudioMetadataReader m_metadataReader;
     TransferManager m_transfers;
     AudioPlayer m_player;

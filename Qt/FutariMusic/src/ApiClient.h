@@ -35,7 +35,7 @@ public:
     QString token() const { return m_token; }
     QNetworkReply *request(const QByteArray &method, const QString &path,
                            const QJsonObject &body, Callback onSuccess, ErrorCallback onError = {});
-    void upload(const QString &path, QHttpMultiPart *parts, Callback onSuccess);
+    void upload(const QString &path, QHttpMultiPart *parts, Callback onSuccess, ErrorCallback onError = {});
     void putUpload(const QString &path, QHttpMultiPart *parts, Callback onSuccess);
     void download(const QString &path, Callback onSuccess);
 signals:

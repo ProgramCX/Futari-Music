@@ -27,7 +27,7 @@ Rectangle {
                         { key: "serverPlaylists", label: "服务器歌单", icon: "playlist" },
                         { key: "lyrics", label: "歌词", icon: "lyrics" },
                         { key: "transfers", label: "上传与下载", icon: "download" }
-                    ]
+                    ].concat(appController.admin ? [{ key: "tools", label: "管理工具", icon: "admin" }] : [])
                     delegate: Rectangle {
                         required property var modelData
                         width: navColumn.width; height: 46; radius: 13

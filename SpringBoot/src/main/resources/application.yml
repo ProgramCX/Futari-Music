@@ -16,6 +16,8 @@ spring:
     multipart:
       max-file-size: ${FUTARI_UPLOAD_MAX_AUDIO_SIZE:64MB}
       max-request-size: ${FUTARI_UPLOAD_MAX_REQUEST_SIZE:80MB}
+server:
+  port: ${SERVER_PORT:8080}
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
