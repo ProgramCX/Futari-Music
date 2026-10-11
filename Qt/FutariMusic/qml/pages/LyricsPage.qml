@@ -23,7 +23,7 @@ Item {
     }
 
     FrameAnimation {
-        running: root.karaokeEnabled && appController.player.playing
+        running: root.karaokeEnabled && appController.player.playing && !appController.player.loading
         onTriggered: {
             const elapsed = Date.now() - root.lyricSyncTime
             const projected = appController.player.position + Math.max(0, elapsed)
@@ -35,6 +35,11 @@ Item {
     Connections {
         target: appController.player
         function onPositionChanged() {
+            if (appController.player.loading) return
+            root.lyricPosition = appController.player.position
+            root.lyricSyncTime = Date.now()
+        }
+        function onLoadingChanged() {
             root.lyricPosition = appController.player.position
             root.lyricSyncTime = Date.now()
         }

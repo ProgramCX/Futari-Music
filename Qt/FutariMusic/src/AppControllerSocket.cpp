@@ -42,7 +42,11 @@ void AppController::handleSocketMessage(const QString& message) {
         if (!m_session.roomId || isStalePlayback(data)) return;
         m_session.roomState.insert("playback", data);
         emit roomStateChanged();
-        applyPlayback(data);
+        // Periodic room sync must not repeatedly abandon a still-buffering seek.
+        if (type != "SYNC" || !m_player.loading() ||
+            data.value("status").toString() != "playing" ||
+            m_player.song().value("id").toLongLong() != data.value("currentSongId").toInteger())
+            applyPlayback(data);
         return;
     }
     if (type == "PLAYLIST_UPDATE" || type == "MEMBER_JOIN" || type == "MEMBER_LEAVE" ||

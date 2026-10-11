@@ -260,7 +260,7 @@ public class SongServiceImpl implements SongService {
             Album album = albumService.require(song.getAlbumId());
             if (album.getCoverHash() != null) {
                 var cover = albumService.cover(album.getId());
-                return new SongCoverResponse(cover.getInternalPath(), cover.getContentType(), cover.getFilePath(), cover.getFileSize());
+                return new SongCoverResponse(cover.getContentType(), cover.getFilePath(), cover.getFileSize());
             }
         }
         if (song.getCoverHash() == null || song.getCoverFormat() == null) throw new BizException(ErrorCode.NOT_FOUND);
@@ -271,8 +271,7 @@ public class SongServiceImpl implements SongService {
         Path file = directory.resolve("covers").resolve(song.getCoverHash() + "." + format).normalize();
         if (!file.startsWith(directory) || !Files.isRegularFile(file)) throw new BizException(ErrorCode.NOT_FOUND);
         try {
-            return new SongCoverResponse("/protected-music/covers/" + song.getCoverHash() + "." + format,
-                    mime, file.toString(), Files.size(file));
+            return new SongCoverResponse(mime, file.toString(), Files.size(file));
         } catch (java.io.IOException ex) {
             log.error("歌曲封面读取失败，song {}", song.getId(), ex);
             throw new BizException(ErrorCode.SONG_STORAGE);

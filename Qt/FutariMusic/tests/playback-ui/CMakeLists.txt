@@ -10,6 +10,7 @@ add_executable(playbackUiRegression main.cpp
     ../../src/ApiClient.cpp ../../src/ApiClient.h
     ../../src/ClientUpdateManager.cpp ../../src/ClientUpdateManager.h
     ../../src/AudioPlayer.cpp ../../src/AudioPlayer.h
+    ../../src/AudioStreamServer.cpp ../../src/AudioStreamServer.h
     ../../src/AudioMetadataReader.cpp ../../src/AudioMetadataReader.h
     ../../src/TransferManager.cpp ../../src/TransferManager.h)
 target_link_libraries(playbackUiRegression PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network Qt6::WebSockets Qt6::Widgets Qt6::Svg Qt6::Test)

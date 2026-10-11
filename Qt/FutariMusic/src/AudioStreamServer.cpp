@@ -26,11 +26,16 @@ struct AudioStreamServer::StreamRequest {
     QPointer<QTcpSocket> socket;
     QPointer<QNetworkReply> reply;
     QFile cachedFile;
+    QString hash;
     QByteArray rangeHeader;
     ByteRange requestedRange;
     qint64 cacheWriteOffset = -1;
     qint64 cachedReadEnd = -1;
+    qint64 upstreamBytesRead = 0;
+    qint64 localBytesQueued = 0;
     quint64 session = 0;
+    int retryCount = 0;
+    int upstreamStatus = 0;
     bool hasRequestedRange = false;
     bool responseStarted = false;
     bool localResponse = false;
@@ -39,6 +44,12 @@ struct AudioStreamServer::StreamRequest {
 };
 
 namespace {
+constexpr int kRangesSaveIntervalMs = 500;
+constexpr int kRangesPublishIntervalMs = 80;
+constexpr int kMaxInitialRequestRetries = 2;
+
+bool isRetryableStatus(int status) { return status >= 500 && status < 600; }
+
 QString contentTypeFor(const QString &format) {
     if (format == QStringLiteral("mp3")) return QStringLiteral("audio/mpeg");
     if (format == QStringLiteral("flac")) return QStringLiteral("audio/flac");
@@ -76,6 +87,10 @@ QByteArray responseHeaders(int status, const QByteArray &contentType, qint64 con
 
 AudioStreamServer::AudioStreamServer(QObject *parent) : QObject(parent) {
     connect(&m_server, &QTcpServer::newConnection, this, &AudioStreamServer::acceptConnections);
+    m_rangesSaveTimer.setSingleShot(true);
+    connect(&m_rangesSaveTimer, &QTimer::timeout, this, &AudioStreamServer::saveCachedRanges);
+    m_rangesPublishTimer.setSingleShot(true);
+    connect(&m_rangesPublishTimer, &QTimer::timeout, this, &AudioStreamServer::bufferedRangesChanged);
 }
 
 AudioStreamServer::~AudioStreamServer() { stop(); }
@@ -120,8 +135,13 @@ QUrl AudioStreamServer::start(const QUrl &apiBase, const QString &authorizationT
 
 void AudioStreamServer::stop() {
     if (m_persistCache && !m_cacheFinalized && !m_partialPath.isEmpty()) saveCachedRanges();
+    m_cacheWriteFile.close();
+    m_cacheWriteFile.setFileName({});
+    m_rangesSaveTimer.stop();
+    m_rangesPublishTimer.stop();
     ++m_session;
-    for (QNetworkReply *reply : std::as_const(m_replies)) {
+    const QList<QNetworkReply *> replies = m_replies.values();
+    for (QNetworkReply *reply : replies) {
         if (reply) reply->abort();
     }
     m_replies.clear();
@@ -146,7 +166,7 @@ void AudioStreamServer::stop() {
     m_persistCache = false;
     m_cacheFinalized = false;
     m_finalizationPending = false;
-    publishRangeChanges();
+    emit bufferedRangesChanged();
 }
 
 QVariantList AudioStreamServer::bufferedRanges() const {
@@ -214,6 +234,7 @@ void AudioStreamServer::readRequest(QTcpSocket *socket) {
 
     auto request = QSharedPointer<StreamRequest>::create();
     request->socket = socket;
+    request->hash = m_hash;
     request->session = m_session;
     request->headOnly = method == "HEAD";
     QByteArray rangeHeader;
@@ -228,8 +249,11 @@ void AudioStreamServer::readRequest(QTcpSocket *socket) {
     request->rangeHeader = rangeHeader;
     request->hasRequestedRange = parseClientRange(rangeHeader, &request->requestedRange);
 
-    if (request->hasRequestedRange && (!m_finalizationPending || m_cacheFinalized) &&
-        isRangeCached(request->requestedRange.start, request->requestedRange.end)) {
+    const bool cachedRangeReady = request->hasRequestedRange &&
+        (!m_finalizationPending || m_cacheFinalized) &&
+        isRangeCached(request->requestedRange.start, request->requestedRange.end) &&
+        (!m_cacheWriteFile.isOpen() || m_cacheWriteFile.flush());
+    if (cachedRangeReady) {
         const QString sourcePath = m_cacheFinalized ? m_completedPath : m_partialPath;
         request->cachedFile.setFileName(sourcePath);
         if (request->cachedFile.open(QIODevice::ReadOnly) &&
@@ -311,7 +335,22 @@ void AudioStreamServer::startUpstream(const QSharedPointer<StreamRequest> &reque
     request->reply = reply;
     m_replies.insert(reply);
     reply->setReadBufferSize(512 * 1024);
-    connect(reply, &QNetworkReply::metaDataChanged, this, [this, request] { beginResponse(request); });
+    connect(reply, &QNetworkReply::metaDataChanged, this, [this, request] {
+        const int status = request->reply
+            ? request->reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()
+            : 0;
+        request->upstreamStatus = status;
+        if (status >= 500 && status < 600) {
+            qWarning().noquote() << "[audio stream] upstream returned HTTP error"
+                                 << "hash=" << request->hash
+                                 << "range=" << request->rangeHeader
+                                 << "status=" << status
+                                 << "contentRange=" << request->reply->rawHeader("Content-Range")
+                                 << "retry=" << request->retryCount;
+        }
+        if (isRetryableStatus(status) && request->retryCount < kMaxInitialRequestRetries) return;
+        beginResponse(request);
+    });
     connect(reply, &QIODevice::readyRead, this, [this, request] { forwardAvailableData(request); });
     connect(request->socket, &QTcpSocket::bytesWritten, this, [this, request] {
         forwardAvailableData(request);
@@ -320,6 +359,13 @@ void AudioStreamServer::startUpstream(const QSharedPointer<StreamRequest> &reque
     connect(request->socket, &QTcpSocket::disconnected, this, [this, request] {
         if (!request->reply) return;
         QNetworkReply *reply = request->reply;
+        qInfo().noquote() << "[audio stream] local media request closed with upstream active"
+                          << "hash=" << request->hash
+                          << "range=" << request->rangeHeader
+                          << "status=" << request->upstreamStatus
+                          << "responseStarted=" << request->responseStarted
+                          << "upstreamBytesRead=" << request->upstreamBytesRead
+                          << "localBytesQueued=" << request->localBytesQueued;
         reply->abort();
         reply->deleteLater();
         request->reply.clear();
@@ -327,10 +373,51 @@ void AudioStreamServer::startUpstream(const QSharedPointer<StreamRequest> &reque
     });
     connect(reply, &QNetworkReply::finished, this, [this, request, reply] {
         m_replies.remove(reply);
+        // FFmpeg closes a local range request when it seeks or replaces the
+        // current read. That aborts the upstream reply intentionally; do not
+        // turn the resulting OperationCanceledError into a playback error.
+        if (!request->socket || request->socket->state() != QAbstractSocket::ConnectedState ||
+            request->session != m_session) {
+            reply->deleteLater();
+            return;
+        }
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        request->upstreamStatus = status;
+        const bool retryableFailure = isRetryableStatus(status) ||
+            (status == 0 && reply->error() != QNetworkReply::NoError);
+        if (!request->responseStarted && retryableFailure &&
+            request->retryCount < kMaxInitialRequestRetries && request->socket &&
+            request->socket->state() == QAbstractSocket::ConnectedState &&
+            request->session == m_session) {
+            ++request->retryCount;
+            request->reply.clear();
+            reply->deleteLater();
+            QTimer::singleShot(100 * request->retryCount, this, [this, request] {
+                if (request->session == m_session && request->socket &&
+                    request->socket->state() == QAbstractSocket::ConnectedState)
+                    startUpstream(request);
+            });
+            return;
+        }
         request->upstreamFinished = true;
         beginResponse(request);
         forwardAvailableData(request);
+        if (status >= 500 || reply->error() != QNetworkReply::NoError) {
+            qWarning().noquote() << "[audio stream] upstream request finished with failure"
+                                 << "hash=" << request->hash
+                                 << "range=" << request->rangeHeader
+                                 << "status=" << status
+                                 << "retry=" << request->retryCount
+                                 << "error=" << reply->errorString()
+                                 << "upstreamBytesRead=" << request->upstreamBytesRead
+                                 << "localBytesQueued=" << request->localBytesQueued;
+        }
         if (!request->responseStarted && request->socket) {
+            qWarning().noquote() << "[audio stream] upstream returned no response headers after retries"
+                                 << "hash=" << request->hash
+                                 << "status=" << status
+                                 << "range=" << request->rangeHeader
+                                 << "error=" << reply->errorString();
             request->socket->write(responseHeaders(502, "text/plain", 0));
         }
         if (reply->error() != QNetworkReply::NoError && request->session == m_session)
@@ -344,7 +431,7 @@ void AudioStreamServer::beginResponse(const QSharedPointer<StreamRequest> &reque
     QNetworkReply *reply = request->reply;
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if (status <= 0) return;
-
+    if (isRetryableStatus(status) && request->retryCount < kMaxInitialRequestRetries) return;
     const QByteArray contentRangeHeader = reply->rawHeader("Content-Range");
     ByteRange actualRange;
     qint64 actualTotal = 0;
@@ -378,15 +465,17 @@ void AudioStreamServer::forwardAvailableData(const QSharedPointer<StreamRequest>
     if (!request->responseStarted || request->headOnly || request->socket->bytesToWrite() > 512 * 1024) return;
     const QByteArray bytes = request->reply->readAll();
     if (bytes.isEmpty()) return;
+    request->upstreamBytesRead += bytes.size();
     if (request->cacheWriteOffset >= 0 && !m_cacheFinalized && !m_finalizationPending)
         recordCachedBytes(request->cacheWriteOffset, bytes);
     request->cacheWriteOffset += bytes.size();
-    request->socket->write(bytes);
+    const qint64 queued = request->socket->write(bytes);
+    if (queued > 0) request->localBytesQueued += queued;
 }
 
 void AudioStreamServer::finishUpstreamResponse(const QSharedPointer<StreamRequest> &request) {
     if (!request || !request->upstreamFinished || !request->socket ||
-        (request->reply && request->reply->bytesAvailable() > 0) ||
+        (request->reply && request->reply->isOpen() && request->reply->bytesAvailable() > 0) ||
         request->socket->bytesToWrite() > 0)
         return;
     request->socket->disconnectFromHost();
@@ -409,12 +498,17 @@ void AudioStreamServer::pumpCachedResponse(const QSharedPointer<StreamRequest> &
 
 void AudioStreamServer::recordCachedBytes(qint64 start, const QByteArray &bytes) {
     if (bytes.isEmpty() || m_partialPath.isEmpty()) return;
-    QFile part(m_partialPath);
-    if (!part.open(QIODevice::ReadWrite) || !part.seek(start) || part.write(bytes) != bytes.size()) {
+    if (!m_cacheWriteFile.isOpen()) {
+        m_cacheWriteFile.setFileName(m_partialPath);
+        if (!m_cacheWriteFile.open(QIODevice::ReadWrite)) {
+            emit sourceError(QStringLiteral("写入音乐缓存失败"));
+            return;
+        }
+    }
+    if (!m_cacheWriteFile.seek(start) || m_cacheWriteFile.write(bytes) != bytes.size()) {
         emit sourceError(QStringLiteral("写入音乐缓存失败"));
         return;
     }
-    part.close();
     mergeRange(start, start + bytes.size() - 1);
     publishRangeChanges();
     if (m_persistCache) scheduleRangesSave();
@@ -478,18 +572,19 @@ void AudioStreamServer::loadCachedRanges() {
         return;
     }
 
-    // Older clients wrote only sequential prefixes; migrate that known contiguous data safely.
-    const qint64 legacyPrefix = QFileInfo(m_partialPath).size();
-    if (legacyPrefix > 0 && (m_totalBytes <= 0 || legacyPrefix <= m_totalBytes))
-        mergeRange(0, legacyPrefix - 1);
+    // A sparse .part file has the size of its highest written offset. Without the
+    // sidecar we cannot prove which bytes exist, so never serve its holes as audio.
+    QFile::remove(m_partialPath);
 }
 
 void AudioStreamServer::scheduleRangesSave() {
-    QTimer::singleShot(500, this, [this] { saveCachedRanges(); });
+    // Coalesce many network chunks into one metadata write.
+    if (!m_rangesSaveTimer.isActive()) m_rangesSaveTimer.start(kRangesSaveIntervalMs);
 }
 
 void AudioStreamServer::saveCachedRanges() {
     if (!m_persistCache || m_rangesPath.isEmpty()) return;
+    if (m_cacheWriteFile.isOpen() && !m_cacheWriteFile.flush()) return;
     if (m_cacheFinalized) {
         QFile::remove(m_rangesPath);
         return;
@@ -515,6 +610,7 @@ void AudioStreamServer::tryCompleteCache() {
         return;
     m_finalizationPending = true;
     saveCachedRanges();
+    m_cacheWriteFile.close();
     const QString partialPath = m_partialPath;
     const QString completedPath = m_completedPath;
     const QString rangesPath = m_rangesPath;
@@ -559,5 +655,8 @@ void AudioStreamServer::tryCompleteCache() {
         }));
 }
 
-void AudioStreamServer::publishRangeChanges() { emit bufferedRangesChanged(); }
+void AudioStreamServer::publishRangeChanges() {
+    // One UI update per frame is enough; raw chunks can arrive hundreds of times per second.
+    if (!m_rangesPublishTimer.isActive()) m_rangesPublishTimer.start(kRangesPublishIntervalMs);
+}
 

@@ -5,7 +5,6 @@ import com.chengxu.futari.common.result.PageResult;
 import com.chengxu.futari.song.dto.AlbumCoverResponse;
 import com.chengxu.futari.song.dto.AlbumResponse;
 import com.chengxu.futari.song.service.AlbumService;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -30,12 +29,8 @@ public class AlbumController {
         return ApiResult.ok(service.list(keyword, pageNum, pageSize));
     }
 
-    @GetMapping("/{id}/cover") public ResponseEntity<Resource> cover(@PathVariable Long id, HttpServletRequest request) {
+    @GetMapping("/{id}/cover") public ResponseEntity<Resource> cover(@PathVariable Long id) {
         AlbumCoverResponse cover = service.cover(id);
-        if ("1".equals(request.getHeader("X-Futari-Nginx"))) {
-            return ResponseEntity.ok().header("X-Accel-Redirect", cover.getInternalPath())
-                    .header(HttpHeaders.CACHE_CONTROL, "private, no-store").build();
-        }
         return ResponseEntity.ok().contentType(MediaType.parseMediaType(cover.getContentType()))
                 .contentLength(cover.getFileSize()).header(HttpHeaders.CACHE_CONTROL, "private, no-store")
                 .body(new FileSystemResource(cover.getFilePath()));

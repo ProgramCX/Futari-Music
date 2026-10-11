@@ -2,12 +2,14 @@
 #define FUTARI_AUDIO_STREAM_SERVER_H
 
 #include <QHash>
+#include <QFile>
 #include <QJsonArray>
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QPointer>
 #include <QSet>
 #include <QTcpServer>
+#include <QTimer>
 #include <QVariantList>
 
 class QNetworkReply;
@@ -61,6 +63,9 @@ private:
 
     QTcpServer m_server;
     QNetworkAccessManager m_network;
+    QFile m_cacheWriteFile;
+    QTimer m_rangesSaveTimer;
+    QTimer m_rangesPublishTimer;
     // Each player request is short-lived; stale sockets/replies are aborted on source changes.
     QHash<QTcpSocket *, QByteArray> m_requestBuffers;
     QSet<QTcpSocket *> m_sockets;

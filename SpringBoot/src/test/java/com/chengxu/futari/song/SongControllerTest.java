@@ -36,15 +36,21 @@ class SongControllerTest {
                 .andExpect(content().bytes(new byte[]{1, 2, 3}));
     }
 
-    @Test void nginxProxyKeepsInternalFileRedirect() throws Exception {
+    @Test void legacyNginxHeaderStillStreamsByteRangesFromSpring() throws Exception {
         String hash = "b".repeat(64);
+        byte[] bytes = {0, 1, 2, 3, 4};
+        Path audio = storage.resolve(hash);
+        Files.write(audio, bytes);
         SongService service = mock(SongService.class);
-        when(service.file(hash)).thenReturn(new SongFileResponse(storage.resolve(hash).toString(), "audio/mpeg", 5));
+        when(service.file(hash)).thenReturn(new SongFileResponse(audio.toString(), "audio/mpeg", bytes.length));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new SongController(service)).build();
 
-        mvc.perform(get("/api/songs/{hash}/file", hash).header("X-Futari-Nginx", "1"))
-                .andExpect(status().isOk())
-                .andExpect(header().string("X-Accel-Redirect", "/protected-music/" + hash))
-                .andExpect(content().string(""));
+        mvc.perform(get("/api/songs/{hash}/file", hash)
+                        .header("X-Futari-Nginx", "1")
+                        .header("Range", "bytes=1-3"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string("Content-Range", "bytes 1-3/5"))
+                .andExpect(header().doesNotExist("X-Accel-Redirect"))
+                .andExpect(content().bytes(new byte[]{1, 2, 3}));
     }
 }

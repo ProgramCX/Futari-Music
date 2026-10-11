@@ -123,7 +123,7 @@ public class AlbumServiceImpl implements AlbumService {
         Path directory = Path.of(storageDirectory).toAbsolutePath().normalize();
         Path file = directory.resolve("covers").resolve(hash + "." + format).normalize();
         if (!file.startsWith(directory) || !Files.isRegularFile(file)) throw new BizException(ErrorCode.NOT_FOUND);
-        try { return new AlbumCoverResponse("/protected-music/covers/" + hash + "." + format, mime, file.toString(), Files.size(file)); }
+        try { return new AlbumCoverResponse(mime, file.toString(), Files.size(file)); }
         catch (IOException ex) { log.error("专辑封面读取失败，album {}", id, ex); throw new BizException(ErrorCode.SONG_STORAGE); }
     }
 }

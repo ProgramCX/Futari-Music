@@ -1,25 +1,19 @@
-# 将 MUSIC_STORAGE_DIR 的绝对路径填入 alias，路径结尾必须是 /。
-# Nginx worker 必须能穿越父目录，并对 music-storage 及其文件有只读权限。
 server {
     listen 8081;
     server_name localhost;
     # Spring 上传限制读取 FUTARI_UPLOAD_MAX_REQUEST_SIZE；修改该值时同步调整 Nginx 请求体上限。
     client_max_body_size 80m;
 
-    location /protected-music/ {
-        internal;
-        alias /absolute/path/to/music-storage/;
-        types { image/jpeg jpg; image/png png; image/webp webp; }
-        default_type application/octet-stream;
-        add_header Cache-Control "private, no-store" always;
-    }
-
     location /api/ {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
         proxy_set_header Authorization $http_authorization;
-        # 下载鉴权仍由 Spring 负责，通过后让 Nginx 直接发送文件，避免 Java 长时间占用传输连接。
-        proxy_set_header X-Futari-Nginx "1";
+        # 音乐和封面由 Spring 鉴权后流式返回；关闭代理缓冲以便 Range 音频及时送达。
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
     }
 
     location /ws {

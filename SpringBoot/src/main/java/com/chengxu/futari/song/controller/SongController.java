@@ -29,7 +29,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** 歌曲检索、上传和授权后内部重定向。 @author Futari */
+/** 歌曲检索、上传和鉴权后的媒体传输。 @author Futari */
 @RestController @RequestMapping("/api/songs") @RequiredArgsConstructor
 public class SongController {
     private final SongService service;
@@ -47,14 +47,8 @@ public class SongController {
     @GetMapping("/{id}/lyrics")
     public ApiResult<SongLyricsResponse> lyrics(@PathVariable Long id) { return ApiResult.ok(service.lyrics(id)); }
     @GetMapping("/{id}/cover")
-    public ResponseEntity<Resource> cover(@PathVariable Long id, HttpServletRequest request) {
+    public ResponseEntity<Resource> cover(@PathVariable Long id) {
         SongCoverResponse cover = service.cover(id);
-        if ("1".equals(request.getHeader("X-Futari-Nginx"))) {
-            return ResponseEntity.ok()
-                    .header("X-Accel-Redirect", cover.getInternalPath())
-                    .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
-                    .build();
-        }
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(cover.getContentType()))
                 .contentLength(cover.getFileSize())
@@ -64,12 +58,6 @@ public class SongController {
     @GetMapping("/{hash}/file")
     public ResponseEntity<?> file(@PathVariable String hash, HttpServletRequest request) {
         SongFileResponse file = service.file(hash);
-        if ("1".equals(request.getHeader("X-Futari-Nginx"))) {
-            return ResponseEntity.ok()
-                    .header("X-Accel-Redirect", "/protected-music/" + hash)
-                    .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
-                    .build();
-        }
         String rangeHeader = request.getHeader(HttpHeaders.RANGE);
         if (rangeHeader == null || rangeHeader.isBlank()) {
             return ResponseEntity.ok().contentType(MediaType.parseMediaType(file.getContentType()))

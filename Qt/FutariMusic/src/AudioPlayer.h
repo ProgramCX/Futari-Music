@@ -2,10 +2,12 @@
 #define FUTARI_AUDIO_PLAYER_H
 
 #include <QAudioOutput>
+#include <QElapsedTimer>
 #include <QJsonObject>
 #include <QMediaPlayer>
 #include <QObject>
 #include <QStringList>
+#include <QTimer>
 #include <QVariantList>
 
 #include "AudioStreamServer.h"
@@ -65,6 +67,7 @@ signals:
 private:
     void loadFile(const QString &path, qint64 positionMs, bool autoPlay);
     void setBufferProgress(qreal progress);
+    void setLoading(bool loading);
     // 借用控制器的 API 配置；控制器按成员顺序保证其寿命长于播放器。
     ApiClient *m_api;
     QMediaPlayer m_player;
@@ -77,8 +80,14 @@ private:
     QString m_activePartialPath;
     QString m_ephemeralPath;
     bool m_cacheEnabled = true;
-    // Loading is only the first-source readiness phase; later range fetches keep playback active.
+    // Initial source loading and streaming stalls share the same UI state.
     bool m_loading = false;
+    bool m_playRequested = false;
+    bool m_waitingForSeekProgress = false;
+    qint64 m_seekPosition = 0;
+    qint64 m_lastObservedPosition = 0;
+    QElapsedTimer m_progressClock;
+    QTimer m_stallTimer;
     // Distinguishes a server-backed stream from a complete local file for cache-range reporting.
     bool m_streamingSourceActive = false;
     // Initial seek/play intent is applied once when Qt reports usable media metadata.

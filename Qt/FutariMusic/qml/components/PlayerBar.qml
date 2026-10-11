@@ -106,8 +106,20 @@ Rectangle {
                     from: 0
                     to: Math.max(1, appController.player.duration)
                     value: appController.player.position
+                    property real pendingSeek: -1
                     enabled: !appController.roomState.room || appController.canControl
-                    onMoved: appController.seek(value)
+                    // Commit once after dragging; each seek can cancel an in-flight Range request.
+                    onPressedChanged: {
+                        if (pressed) pendingSeek = value
+                        else if (pendingSeek >= 0) {
+                            appController.seek(Math.round(pendingSeek))
+                            pendingSeek = -1
+                        }
+                    }
+                    onMoved: {
+                        if (pressed) pendingSeek = value
+                        else appController.seek(Math.round(value))
+                    }
                     background: Rectangle {
                         x: progressSlider.leftPadding
                         y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
