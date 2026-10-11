@@ -81,6 +81,13 @@ void AudioPlayer::setCacheDirectory(const QString &directory) {
 
 void AudioPlayer::setCacheEnabled(bool enabled) { m_cacheEnabled = enabled; }
 
+void AudioPlayer::setBufferProgress(qreal progress) {
+    const qreal clamped = qBound(0.0, progress, 1.0);
+    if (qFuzzyCompare(m_bufferProgress, clamped)) return;
+    m_bufferProgress = clamped;
+    emit bufferProgressChanged();
+}
+
 QStringList AudioPlayer::protectedCachePaths() const {
     QStringList paths;
     if (!m_activePlaybackPath.isEmpty()) paths.append(m_activePlaybackPath);
@@ -93,6 +100,17 @@ void AudioPlayer::setVolume(qreal volume) {
     if (qFuzzyCompare(static_cast<double>(m_output.volume()), static_cast<double>(clamped))) return;
     m_output.setVolume(clamped);
     emit volumeChanged();
+}
+
+void AudioPlayer::restoreSong(const QJsonObject &song, qint64 positionMs) {
+    // Restored selection is paused metadata, not a playback request: loading a source here
+    // would download the whole track merely because the application started.
+    m_song = song;
+    m_pendingPosition = qMax<qint64>(0, positionMs);
+    m_pendingPlay = false;
+    emit songChanged();
+    emit durationChanged();
+    emit positionChanged();
 }
 
 void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool autoPlay) {
@@ -110,7 +128,10 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
     if (!m_ephemeralPath.isEmpty()) { QFile::remove(m_ephemeralPath); QFile::remove(m_ephemeralPath + ".part"); }
     m_ephemeralPath.clear(); m_activePartialPath.clear(); m_activePlaybackPath.clear();
     m_song = song;
+    m_pendingPosition = qMax<qint64>(0, positionMs);
     emit songChanged();
+    emit positionChanged();
+    setBufferProgress(0);
     const QString persistentDirectory = m_cacheDirectory.isEmpty()
             ? QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/music_cache" : m_cacheDirectory;
     const bool persistCache = m_cacheEnabled;
@@ -122,6 +143,9 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
         if (digest == hash.toLatin1()) {
             cached.close();
             if (m_cacheEnabled) pruneCache(persistentDirectory, persistentPath);
+            m_loading = true;
+            emit loadingChanged();
+            setBufferProgress(1);
             loadFile(persistentPath, positionMs, autoPlay); return;
         }
         cached.close();
@@ -150,9 +174,9 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
     if (expectedSize > 0 && context->offset == expectedSize && context->digest.result().toHex() == hash.toLatin1()) {
         context->file.close();
         if (QFile::rename(partialPath, path)) {
-            m_loading = false; emit loadingChanged();
             if (persistCache) pruneCache(directory, path);
             m_activePartialPath.clear();
+            setBufferProgress(1);
             loadFile(path, positionMs, autoPlay); return;
         }
         m_loading = false; emit loadingChanged();
@@ -163,8 +187,17 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
     request.setRawHeader("Authorization", "Bearer " + m_api->token().toUtf8());
     request.setTransferTimeout(120000);
     if (context->offset) request.setRawHeader("Range", "bytes=" + QByteArray::number(context->offset) + "-");
+    if (expectedSize > 0) setBufferProgress(static_cast<qreal>(context->offset) / expectedSize);
     auto *reply = m_network.get(request);
     m_activeReply = reply;
+    connect(reply, &QNetworkReply::downloadProgress, this,
+            [this, context, expectedSize, token](qint64 received, qint64 total) {
+                if (token.expired()) return;
+                const qint64 denominator = expectedSize > 0
+                    ? expectedSize : (total > 0 ? context->offset + total : 0);
+                if (denominator > 0)
+                    setBufferProgress(static_cast<qreal>(context->offset + received) / denominator);
+            });
     const auto consume = [this, reply, context, token] {
         const QByteArray chunk = reply->readAll();
         if (token.expired()) return;
@@ -218,15 +251,17 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
                     if (!resumable) QFile::remove(partialPath);
                     if (!resumable && m_activePartialPath == partialPath)
                         m_activePartialPath.clear();
+                    if (!resumable) setBufferProgress(0);
                     emit errorOccurred(networkOk ? QStringLiteral("下载校验或缓存写入失败")
                                                  : reply->errorString());
+                    m_loading = false;
+                    emit loadingChanged();
                 } else {
                     if (persistCache) pruneCache(directory, path);
                     if (m_activePartialPath == partialPath) m_activePartialPath.clear();
+                    setBufferProgress(1);
                     loadFile(path, positionMs, autoPlay);
                 }
-                m_loading = false;
-                emit loadingChanged();
                 reply->deleteLater();
             });
 }
@@ -239,10 +274,19 @@ void AudioPlayer::loadFile(const QString &path, qint64 positionMs, bool autoPlay
 }
 
 void AudioPlayer::pause() { m_pendingPlay = false; m_player.pause(); }
-void AudioPlayer::resume() { if (!m_loading) m_player.play(); else m_pendingPlay = true; }
+void AudioPlayer::resume() {
+    if (m_player.source().isEmpty() && !m_loading && !m_song.isEmpty()) {
+        playSong(m_song, m_pendingPosition);
+    } else if (!m_loading) {
+        m_player.play();
+    } else {
+        m_pendingPlay = true;
+    }
+}
 void AudioPlayer::seek(qint64 positionMs) {
     m_pendingPosition = qMax<qint64>(0, positionMs);
-    if (!m_loading) m_player.setPosition(m_pendingPosition);
+    if (m_player.source().isEmpty()) emit positionChanged();
+    else if (!m_loading) m_player.setPosition(m_pendingPosition);
 }
 void AudioPlayer::playLocalFile(const QString &path, const QString &title, const QString &artist) {
     const QFileInfo file(path);
@@ -257,6 +301,7 @@ void AudioPlayer::playLocalFile(const QString &path, const QString &title, const
     m_ephemeralPath.clear(); m_activePartialPath.clear(); m_activePlaybackPath.clear();
     m_song = QJsonObject{{"title", title}, {"artist", artist}, {"localPath", file.absoluteFilePath()}};
     emit songChanged();
+    setBufferProgress(1);
     m_loading = true; emit loadingChanged();
     m_pendingPosition = 0; m_pendingPlay = true;
     m_player.setSource(QUrl::fromLocalFile(file.absoluteFilePath()));
@@ -272,6 +317,10 @@ void AudioPlayer::stop() {
         QFile::remove(m_ephemeralPath + ".part");
     }
     m_ephemeralPath.clear(); m_activePlaybackPath.clear(); m_activePartialPath.clear();
+    setBufferProgress(0);
     m_song = {}; emit songChanged();
+    m_pendingPosition = 0;
+    m_pendingPlay = false;
+    emit positionChanged();
     if (m_loading) { m_loading = false; emit loadingChanged(); }
 }

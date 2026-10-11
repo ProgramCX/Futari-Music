@@ -8,6 +8,13 @@ Rectangle {
     property var song: ({})
     property bool selected: false
     readonly property bool inRoom: !!appController.roomState.room
+    readonly property real currentSongId: root.inRoom
+        ? Number((appController.roomState.playback || {}).currentSongId || 0)
+        : Number(appController.player.song.id || 0)
+    readonly property bool isCurrentSong: Number(root.song.id || 0) === root.currentSongId
+    readonly property bool currentSongPlaying: root.inRoom
+        ? (appController.roomState.playback || {}).status === "playing"
+        : appController.player.playing
     readonly property bool actionsVisible: hover.hovered || activeFocus || actionScope.activeFocus || addMenu.visible || moreMenu.visible
     readonly property bool favorite: appController.favoriteSongIds.some(id => String(id) === String(root.song.id))
     signal playRequested()
@@ -18,9 +25,15 @@ Rectangle {
     radius: Theme.radiusSmall
     antialiasing: true
     activeFocusOnTab: true
-    color: selected ? Theme.secondary : (hover.hovered ? Theme.hover : "transparent")
+    color: selected || root.isCurrentSong ? Theme.secondary : (hover.hovered ? Theme.hover : "transparent")
     HoverHandler { id: hover }
-    Keys.onReturnPressed: if (!root.inRoom || appController.canControl) root.playRequested()
+    Keys.onReturnPressed: root.activatePlayback()
+
+    function activatePlayback() {
+        if (root.inRoom && !appController.canControl) return
+        if (root.isCurrentSong) appController.togglePlayback()
+        else root.playRequested()
+    }
 
     function openMenu(menu, anchor) {
         const point = anchor.mapToItem(Overlay.overlay, 0, anchor.height + 5)
@@ -36,16 +49,20 @@ Rectangle {
             SvgIcon { anchors.centerIn: parent; name: "music-note"; color: Theme.iconAccent; iconSize: 23 }
             Image { anchors.fill: parent; source: appController.covers[String(root.song.id)] || ""; fillMode: Image.PreserveAspectCrop; visible: status === Image.Ready }
             FutariToolButton {
-                anchors.centerIn: parent; visible: root.actionsVisible
-                iconName: "play"; iconColor: "white"; hoverColor: "#80000000"
+                anchors.centerIn: parent; visible: root.actionsVisible || root.isCurrentSong
+                iconName: root.isCurrentSong && root.currentSongPlaying ? "pause" : "play"
+                iconColor: "white"; hoverColor: "#80000000"
                 enabled: !root.inRoom || appController.canControl
                 background: Rectangle { radius: width / 2; color: "#60000000" }
-                onClicked: root.playRequested(); ToolTip.visible: hovered; ToolTip.text: root.inRoom ? "在房间播放" : "播放"
+                onClicked: root.activatePlayback()
+                ToolTip.visible: hovered
+                ToolTip.text: root.isCurrentSong && root.currentSongPlaying ? "暂停"
+                    : (root.inRoom ? "在房间播放" : "播放")
             }
         }
         ColumnLayout {
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
-            Text { text: root.song.title || "未命名歌曲"; color: root.selected ? Theme.accent : Theme.text; font.pixelSize: 15; font.weight: root.selected ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { text: root.song.title || "未命名歌曲"; color: root.isCurrentSong ? Theme.accent : (root.selected ? Theme.accent : Theme.text); font.pixelSize: 15; font.weight: root.isCurrentSong ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true }
             Text { text: root.song.artist || "未知歌手"; color: Theme.muted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
         }
         FocusScope {
@@ -89,7 +106,7 @@ Rectangle {
     }
     FutariMenu {
         id: moreMenu; objectName: "songMoreMenu"; parent: Overlay.overlay
-        FutariMenuItem { text: root.inRoom ? "在房间播放" : "播放"; iconName: "play"; enabled: !root.inRoom || appController.canControl; onTriggered: root.playRequested() }
+        FutariMenuItem { text: root.isCurrentSong && root.currentSongPlaying ? "暂停" : (root.inRoom ? "在房间播放" : "播放"); iconName: root.isCurrentSong && root.currentSongPlaying ? "pause" : "play"; enabled: !root.inRoom || appController.canControl; onTriggered: root.activatePlayback() }
         FutariMenuItem { text: "下一首播放"; iconName: "play-next"; enabled: !root.inRoom || appController.canControl; onTriggered: appController.playNext(root.song) }
         FutariMenuSeparator {}
         FutariMenuItem { text: "添加到…"; iconName: "plus"; onTriggered: root.openMenu(addMenu, addButton) }
@@ -114,5 +131,5 @@ Rectangle {
     }
     Connections { target: appController; function onPlaylistCreationFinished(songId, added) { if (String(songId) === String(root.song.id) && createPlaylistDialog.visible) createPlaylistDialog.close() } }
     TapHandler { acceptedButtons: Qt.RightButton; onTapped: eventPoint => { const p = root.mapToItem(Overlay.overlay, eventPoint.position.x, eventPoint.position.y); moreMenu.popup(p.x, p.y) } }
-    TapHandler { onDoubleTapped: if (!root.inRoom || appController.canControl) root.playRequested() }
+    TapHandler { onDoubleTapped: root.activatePlayback() }
 }

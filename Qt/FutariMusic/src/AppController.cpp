@@ -1,6 +1,7 @@
 #include "AppController.h"
 
 #include <QDateTime>
+#include <QJsonDocument>
 
 AppController::AppController(QObject* parent)
     : QObject(parent),
@@ -24,6 +25,29 @@ void AppController::restorePreferences() {
     m_player.setVolume(m_settings.value("playerVolume", 0.7).toReal());
     m_username = m_settings.value("username").toString();
     m_autoLogin = m_settings.value("autoLogin", false).toBool();
+    if (savePlaybackQueue()) {
+        // Restore metadata with IDs so the queue can render before the next library refresh.
+        const QJsonObject savedQueue =
+            QJsonDocument::fromJson(m_settings.value("playbackQueue").toByteArray()).object();
+        cacheSongs(savedQueue.value("songs").toArray());
+        QSet<qint64> uniqueIds;
+        for (const QJsonValue& value : savedQueue.value("queue").toArray()) {
+            const qint64 songId = value.toInteger();
+            if (songId > 0 && !uniqueIds.contains(songId)) {
+                m_session.localQueue.append(songId);
+                uniqueIds.insert(songId);
+            }
+        }
+        const qint64 currentSongId = savedQueue.value("currentSongId").toInteger();
+        if (uniqueIds.contains(currentSongId)) {
+            const QJsonObject currentSong = findSong(currentSongId);
+            if (!currentSong.isEmpty()) {
+                // Restore the selected track and seek target without starting a download.
+                m_player.restoreSong(currentSong,
+                                     qMax<qint64>(0, savedQueue.value("positionMs").toInteger()));
+            }
+        }
+    }
 }
 
 void AppController::setupConnections() {
@@ -123,6 +147,51 @@ void AppController::setDarkMode(bool value) {
     m_darkMode = value;
     m_settings.setValue("darkMode", value);
     emit darkModeChanged();
+}
+void AppController::setMinimizeToTrayOnClose(bool minimize) {
+    if (minimizeToTrayOnClose() == minimize) return;
+    m_settings.setValue("minimizeToTrayOnClose", minimize);
+    emit settingsChanged();
+}
+void AppController::setSavePlaybackQueue(bool enabled) {
+    if (savePlaybackQueue() == enabled) return;
+    m_settings.setValue("savePlaybackQueue", enabled);
+    if (enabled)
+        persistPlaybackQueue();
+    else
+        m_settings.remove("playbackQueue");
+    emit settingsChanged();
+}
+
+void AppController::persistPlaybackQueue() {
+    if (!savePlaybackQueue()) {
+        m_settings.remove("playbackQueue");
+        return;
+    }
+    QJsonArray queue;
+    QJsonArray songs;
+    // Room playback has its own queue; preserve the personal track captured on entry.
+    const QJsonObject currentSong = m_session.roomId
+        ? m_session.savedLocalSong : QJsonObject::fromVariantMap(m_player.song());
+    const qint64 currentSongId = currentSong.value("id").toInteger();
+    const qint64 currentPosition = m_session.roomId
+        ? m_session.savedLocalPosition : m_player.position();
+    bool currentSongQueued = false;
+    // Keep only records needed to render and replay queued items; covers remain in the cover cache.
+    for (const QJsonValue& value : m_session.localQueue) {
+        const qint64 songId = value.toInteger();
+        queue.append(songId);
+        const bool isCurrent = songId == currentSongId;
+        currentSongQueued |= isCurrent;
+        const QJsonObject song = isCurrent ? currentSong : findSong(songId);
+        if (!song.isEmpty()) songs.append(song);
+    }
+    m_settings.setValue("playbackQueue", QJsonDocument(QJsonObject{
+        {"queue", queue}, {"songs", songs},
+        {"currentSongId", currentSongQueued ? currentSongId : 0},
+        {"positionMs", currentSongQueued ? currentPosition : 0}})
+        .toJson(QJsonDocument::Compact));
+    m_settings.sync();
 }
 void AppController::setAutoLogin(bool value) {
     if (m_autoLogin == value) return;

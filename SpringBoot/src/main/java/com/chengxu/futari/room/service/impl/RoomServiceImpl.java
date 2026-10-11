@@ -86,6 +86,8 @@ public class RoomServiceImpl implements RoomService {
 
     public void requireController(Long userId, Long roomId) {
         requireMember(userId, roomId);
+        // 管理员进入房间后可直接协助控制播放，不必先由房主逐个授权。
+        if (users.hasPermission(userId, "admin")) return;
         Room room = require(roomId);
         if (!room.getOwnerId().equals(userId) && !Boolean.TRUE.equals(redis.opsForSet().isMember(RedisKeys.roomControllers(roomId), userId.toString())))
             throw new BizException(ErrorCode.ROOM_CONTROL);

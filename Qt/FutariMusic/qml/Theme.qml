@@ -16,6 +16,7 @@ QtObject {
     readonly property color iconAccent: accent
     readonly property color iconOnAccent: accentText
     readonly property color iconDisabled: dark ? "#626975" : "#a5adb8"
+    readonly property color buffered: dark ? "#434a57" : "#cbd1d9"
     readonly property color buttonFill: secondary
     readonly property color buttonHover: hover
     readonly property color buttonPressed: border

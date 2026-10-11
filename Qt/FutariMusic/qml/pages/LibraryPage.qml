@@ -10,6 +10,7 @@ Item {
     signal transfersRequested()
     property bool batchMode: false
     property var selectedSongIds: []
+    property int pageAnchorBeforeLoad: -1
     readonly property var allSongs: appController.songs
     SingleUploadDialog { id: singleUpload }
     BatchUploadDialog { id: batchUpload }
@@ -33,7 +34,29 @@ Item {
     }
     function runSearch(value) {
         clearBatchSelection()
+        pageAnchorBeforeLoad = -1
         appController.searchSongs(value)
+    }
+    function maybeLoadMoreSongs() {
+        if (!root.visible || !appController.hasMoreSongs || appController.songsLoading) return
+        const remaining = songList.contentHeight - songList.contentY - songList.height
+        if (remaining > Math.max(500, songList.height * 0.75)) return
+        // 追加页会改变 contentHeight；记录旧尾行，响应完成后锚定它以免视口跳动。
+        pageAnchorBeforeLoad = songList.count - 1
+        appController.loadMoreSongs()
+    }
+
+    Connections {
+        target: appController
+        function onSongsChanged() {
+            if (appController.songsLoading || root.pageAnchorBeforeLoad < 0) return
+            const previousLastIndex = root.pageAnchorBeforeLoad
+            Qt.callLater(function() {
+                if (songList.count > previousLastIndex)
+                    songList.positionViewAtIndex(previousLastIndex, ListView.End)
+                root.pageAnchorBeforeLoad = -1
+            })
+        }
     }
 
     ColumnLayout {
@@ -102,11 +125,14 @@ Item {
             }
         }
         ListView {
+            id: songList
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             spacing: 3
             model: appController.songs
+            onContentYChanged: root.maybeLoadMoreSongs()
+            onContentHeightChanged: root.maybeLoadMoreSongs()
             delegate: RowLayout {
                 width: ListView.view.width
                 spacing: 4
@@ -126,12 +152,6 @@ Item {
                 }
             }
             ScrollBar.vertical: ScrollBar {}
-        }
-        FutariButton {
-            text: "加载更多歌曲"
-            visible: appController.hasMoreSongs
-            Layout.alignment: Qt.AlignHCenter
-            onClicked: appController.loadMoreSongs()
         }
     }
 }

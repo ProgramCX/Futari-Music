@@ -90,17 +90,41 @@ bool terminalStatus(const QString &status) {
 }
 
 TransferManager::TransferManager(QObject *parent)
-    : QObject(parent), m_settings(QSettings::defaultFormat(), QSettings::UserScope, "Futari", "FutariMusic") {}
+    : QAbstractListModel(parent),
+      m_settings(QSettings::defaultFormat(), QSettings::UserScope, "Futari", "FutariMusic") {}
 
 QVariantList TransferManager::tasks() const {
     QVariantList result;
     result.reserve(m_tasks.size());
-    for (QVariantMap task : m_tasks) {
-        if (task.value("kind").toString() == "download" && task.value("status").toString() == "success")
-            task.insert("fileExists", QFileInfo::exists(task.value("targetPath").toString()));
-        result.append(task);
-    }
+    for (int row = 0; row < m_tasks.size(); ++row) result.append(taskAt(row));
     return result;
+}
+
+int TransferManager::rowCount(const QModelIndex &parent) const {
+    return parent.isValid() ? 0 : m_tasks.size();
+}
+
+QVariant TransferManager::data(const QModelIndex &modelIndex, int role) const {
+    if (!modelIndex.isValid() || modelIndex.row() < 0 || modelIndex.row() >= m_tasks.size())
+        return {};
+    if (role == TaskDataRole) return taskAt(modelIndex.row());
+    if (role == Qt::DisplayRole) return m_tasks.at(modelIndex.row()).value("title");
+    return {};
+}
+
+QHash<int, QByteArray> TransferManager::roleNames() const {
+    QHash<int, QByteArray> roles = QAbstractListModel::roleNames();
+    roles.insert(TaskDataRole, "modelData");
+    return roles;
+}
+
+QVariantMap TransferManager::taskAt(int row) const {
+    QVariantMap task = m_tasks.at(row);
+    if (task.value("kind").toString() == "download" &&
+        task.value("status").toString() == "success") {
+        task.insert("fileExists", QFileInfo::exists(task.value("targetPath").toString()));
+    }
+    return task;
 }
 
 void TransferManager::setContext(const QUrl &baseUrl, const QString &token, qint64 userId) {
@@ -119,9 +143,11 @@ void TransferManager::setContext(const QUrl &baseUrl, const QString &token, qint
     m_baseUrl = baseUrl;
     m_token = token;
     if (userChanged) {
+        beginResetModel();
         m_userId = userId;
         m_tasks.clear();
         loadForCurrentUser();
+        endResetModel();
     } else m_userId = userId;
     changed();
     processQueues();
@@ -152,7 +178,10 @@ QString TransferManager::enqueueUpload(const QVariantMap &metadata) {
     task.insert("createdAt", QDateTime::currentMSecsSinceEpoch());
     task.insert("message", QString());
     const QString id = task.value("id").toString();
+    const int row = m_tasks.size();
+    beginInsertRows(QModelIndex(), row, row);
     m_tasks.append(task);
+    endInsertRows();
     changed();
     processQueues();
     return id;
@@ -214,7 +243,10 @@ QString TransferManager::enqueueDownload(const QVariantMap &song, const QString 
         task.insert("message", QStringLiteral("文件已存在且内容一致，已复用本地文件"));
         task.insert("completedAt", QDateTime::currentMSecsSinceEpoch());
     }
+    const int row = m_tasks.size();
+    beginInsertRows(QModelIndex(), row, row);
     m_tasks.append(task);
+    endInsertRows();
     changed();
     if (task.value("status").toString() == "success") emit taskSucceeded(id, song, QStringLiteral("download"));
     else processQueues();
@@ -262,6 +294,7 @@ void TransferManager::loadForCurrentUser() {
 
 void TransferManager::changed(bool save) {
     if (save) persist();
+    if (!m_tasks.isEmpty()) emit dataChanged(index(0, 0), index(m_tasks.size() - 1, 0), {TaskDataRole});
     emit tasksChanged();
 }
 
@@ -553,6 +586,7 @@ void TransferManager::updateProgress(const QString &taskId, qint64 transferred, 
         task.insert("speedBytes", qMax<qint64>(0, (transferred - previousBytes) * 1000 / elapsed));
         m_lastProgressTime.insert(taskId, now); m_lastProgressBytes.insert(taskId, transferred);
     }
+    emit dataChanged(this->index(index, 0), this->index(index, 0), {TaskDataRole});
     emit tasksChanged();
     if (now - m_lastPersistTime.value(taskId, 0) >= 1000) {
         m_lastPersistTime.insert(taskId, now); persist();
@@ -602,7 +636,9 @@ void TransferManager::cancelTask(const QString &taskId) {
     if (index < 0 || terminalStatus(m_tasks[index].value("status").toString())) return;
     const QVariantMap task = m_tasks.at(index);
     const QPointer<QNetworkReply> reply = m_replies.value(taskId);
+    beginRemoveRows(QModelIndex(), index, index);
     m_tasks.removeAt(index);
+    endRemoveRows();
     if (task.value("kind").toString() == "download") {
         const QString partialPath = task.value("targetPath").toString() + QStringLiteral(".part");
         if (reply) m_cancelledDownloadPaths.insert(taskId, partialPath);
@@ -644,7 +680,11 @@ void TransferManager::removeFinishedTasks(const QString &kind) {
     for (int i = m_tasks.size() - 1; i >= 0; --i) {
         const QString status = m_tasks[i].value("status").toString();
         if ((kind.isEmpty() || m_tasks[i].value("kind").toString() == kind) &&
-            (terminalStatus(status) || status == "failed" || status == "interrupted")) m_tasks.removeAt(i);
+            (terminalStatus(status) || status == "failed" || status == "interrupted")) {
+            beginRemoveRows(QModelIndex(), i, i);
+            m_tasks.removeAt(i);
+            endRemoveRows();
+        }
     }
     changed();
 }

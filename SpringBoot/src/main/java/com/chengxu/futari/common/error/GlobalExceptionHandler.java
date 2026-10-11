@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 /** REST 异常统一出口。 @author Futari */
 @Slf4j @RestControllerAdvice
@@ -35,6 +36,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResult<Void>> uploadTooLarge(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(ApiResult.fail(ErrorCode.SONG_UPLOAD_SIZE));
+    }
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void clientDisconnected(AsyncRequestNotUsableException ex) {
+        // 音频响应已开始发送，连接断开后不能再把 JSON 错误写进同一响应。
+        log.debug("客户端在响应传输期间断开连接: {}", ex.getMessage());
     }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResult<Void>> unexpected(Exception ex) {

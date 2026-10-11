@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QTimer>
 #include <QWebSocket>
+#include <functional>
 
 #include "ApiClient.h"
 #include "CoverCompletionController.h"
@@ -42,6 +43,11 @@ class AppController final : public QObject {
     Q_PROPERTY(qint64 cacheUsageBytes READ cacheUsageBytes NOTIFY settingsChanged)
     Q_PROPERTY(TransferManager* transferManager READ transferManager CONSTANT)
     Q_PROPERTY(bool hasMoreSongs READ hasMoreSongs NOTIFY songsChanged)
+    Q_PROPERTY(bool songsLoading READ songsLoading NOTIFY songsChanged)
+    Q_PROPERTY(bool minimizeToTrayOnClose READ minimizeToTrayOnClose WRITE
+                   setMinimizeToTrayOnClose NOTIFY settingsChanged)
+    Q_PROPERTY(bool savePlaybackQueue READ savePlaybackQueue WRITE setSavePlaybackQueue
+                   NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList rooms READ rooms NOTIFY roomsChanged)
     Q_PROPERTY(bool hasMoreRooms READ hasMoreRooms NOTIFY roomsChanged)
     Q_PROPERTY(QVariantList partners READ partners NOTIFY partnersChanged)
@@ -99,6 +105,15 @@ public:
     qint64 cacheUsageBytes() const;
     TransferManager* transferManager() { return &m_transfers; }
     bool hasMoreSongs() const { return m_session.songs.items.size() < m_session.songs.total; }
+    bool songsLoading() const { return m_session.songs.loading; }
+    bool minimizeToTrayOnClose() const {
+        return m_settings.value("minimizeToTrayOnClose", true).toBool();
+    }
+    void setMinimizeToTrayOnClose(bool minimize);
+    bool savePlaybackQueue() const {
+        return m_settings.value("savePlaybackQueue", true).toBool();
+    }
+    void setSavePlaybackQueue(bool enabled);
     QVariantList rooms() const { return m_session.rooms.items.toVariantList(); }
     bool hasMoreRooms() const { return m_session.rooms.items.size() < m_session.rooms.total; }
     QVariantList partners() const { return m_session.partners.toVariantList(); }
@@ -186,6 +201,8 @@ public:
     Q_INVOKABLE void createPlaylistWithSongs(const QString& name, const QVariantList& songIds);
     Q_INVOKABLE void moveQueueSong(int index, int direction);
     Q_INVOKABLE void removeQueueSong(int index);
+    Q_INVOKABLE void removeQueueSongs(const QVariantList& songIds);
+    void persistPlaybackQueue();
     Q_INVOKABLE void refreshPartners();
     Q_INVOKABLE void searchUsers(const QString& keyword);
     Q_INVOKABLE void loadMoreUsers();
@@ -278,7 +295,9 @@ private:
     void restoreSession();
     void applySession(const QJsonObject& data);
     static void resetPage(PageState& state, const QString& keyword);
-    void loadPage(PageState& state, const QString& path, std::function<void()> publish);
+    void loadPage(PageState& state, const QString& path, std::function<void()> publish,
+                  int pageSize = 40);
+    void cacheSong(const QJsonObject& song);
     void cacheSongs(const QJsonArray& songs);
     void cachePlaylistSongs(const QJsonArray& playlists);
     void selectAlbumMatches(const QJsonArray& rows, const QString& name, const QString& artist);
@@ -305,10 +324,10 @@ private:
     void applyPlayback(const QJsonObject& playback);
     void playLocalById(qint64 id);
     void publishQueue(const QJsonArray& ids);
+    void removeSongsFromPlaybackQueue(const QSet<qint64>& songIds);
     void enterRoom(qint64 roomId);
     qint64 favoritePlaylistId() const;
     QJsonObject findSong(qint64 id) const;
-    void fetchCovers();
     void fetchCover(const QJsonObject& song);
     void invalidateCoverCache(qint64 songId = 0);
     void pruneCoverCache(const QString& protectedPath);

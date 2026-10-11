@@ -54,8 +54,10 @@ FutariDialog {
         root.albumChoices = choices
     }
     function selectedCover() {
+        // 未关联专辑时，内嵌图片只属于歌曲封面；否则后端会收到“无专辑名但有专辑封面”。
+        if (!newAlbumMode && selectedAlbumId === 0) return ""
         if (manualCoverUrl.length > 0) return manualCoverUrl
-        if (newAlbumMode || selectedAlbumId === 0 || useEmbeddedCover) return embeddedCoverUrl
+        if (newAlbumMode || useEmbeddedCover) return embeddedCoverUrl
         return ""
     }
     function selectedSongCover() {
@@ -259,7 +261,8 @@ FutariDialog {
             FutariButton { text: "取消"; onClicked: root.reject() }
             FutariButton {
                 text: "加入上传队列"; prominent: true
-                enabled: root.audioUrl.length > 0 && titleField.text.trim().length > 0
+                enabled: root.audioUrl.length > 0 && titleField.text.trim().length > 0 &&
+                         (!root.newAlbumMode || newAlbumNameField.text.trim().length > 0)
                 onClicked: {
                     const options = root.albumChoices
                     const chosen = albumSelector.currentIndex > 0 && !root.newAlbumMode ? options[albumSelector.currentIndex] : null

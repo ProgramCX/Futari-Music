@@ -1,4 +1,5 @@
 # 将 MUSIC_STORAGE_DIR 的绝对路径填入 alias，路径结尾必须是 /。
+# Nginx worker 必须能穿越父目录，并对 music-storage 及其文件有只读权限。
 server {
     listen 8081;
     server_name localhost;
@@ -17,6 +18,7 @@ server {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
         proxy_set_header Authorization $http_authorization;
+        # 下载鉴权仍由 Spring 负责，通过后让 Nginx 直接发送文件，避免 Java 长时间占用传输连接。
         proxy_set_header X-Futari-Nginx "1";
     }
 

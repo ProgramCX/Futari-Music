@@ -55,6 +55,15 @@ int main(int argc, char* argv[]) {
     QObject::connect(&controller, &AppController::darkModeChanged, &app,
                      [&controller] { applyPalette(controller.darkMode()); });
     NotificationService notifications;
+    notifications.setPlaybackController(&controller);
+    // A taskbar close can count as closing the last window even when QML hides it
+    // to the tray. Keep Qt's automatic quit policy aligned with the close setting.
+    const auto updateClosePolicy = [&app, &controller, &notifications] {
+        app.setQuitOnLastWindowClosed(
+            !(controller.minimizeToTrayOnClose() && notifications.available()));
+    };
+    updateClosePolicy();
+    QObject::connect(&controller, &AppController::settingsChanged, &app, updateClosePolicy);
     QObject::connect(&updates, &ClientUpdateManager::updateStarted, &notifications,
                      &NotificationService::showUpdateStarted);
     QObject::connect(&updates, &ClientUpdateManager::downloadProgressChanged, &notifications,
@@ -77,19 +86,29 @@ int main(int argc, char* argv[]) {
                      &NotificationService::showUpdateFailed);
     QObject::connect(&controller, &AppController::invitationArrived, &notifications,
                      &NotificationService::showInvitation);
-    QObject::connect(&notifications, &NotificationService::activated, &controller,
+    QObject::connect(&notifications, &NotificationService::messageClicked, &controller,
                      &AppController::openMessagesRequested);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("appController", &controller);
     engine.rootContext()->setContextProperty("updateManager", &updates);
-    QObject::connect(
-        &updates, &ClientUpdateManager::requestApplicationClose, &app, [&engine, &app] {
-            if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().value(0)))
-                window->close();
-            else
-                app.quit();
-        });
+    engine.rootContext()->setContextProperty("trayAvailable", notifications.available());
+    const auto restoreMainWindow = [&engine] {
+        if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().value(0))) {
+            window->show();
+            window->raise();
+            window->requestActivate();
+        }
+    };
+    QObject::connect(&notifications, &NotificationService::activated, &app, restoreMainWindow);
+    QObject::connect(&notifications, &NotificationService::showMainWindowRequested, &app,
+                     restoreMainWindow);
+    QObject::connect(&notifications, &NotificationService::exitRequested, &app,
+                     &QCoreApplication::quit);
+    QObject::connect(&updates, &ClientUpdateManager::requestApplicationClose, &app,
+                     &QCoreApplication::quit);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &controller,
+                     &AppController::persistPlaybackQueue);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &updates,
                      &ClientUpdateManager::restartAfterQuit);
     QObject::connect(

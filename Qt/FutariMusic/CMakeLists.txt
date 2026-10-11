@@ -96,6 +96,7 @@ qt_add_qml_module(appFutariMusic
         qml/assets/icons/queue.svg
         qml/assets/icons/volume.svg
         qml/assets/icons/check.svg
+        qml/assets/icons/list-check.svg
         qml/assets/icons/admin.svg
         qml/assets/icons/search.svg
         qml/assets/icons/upload.svg
@@ -109,6 +110,7 @@ qt_add_qml_module(appFutariMusic
 
 qt_add_resources(appFutariMusic appIconResources
     PREFIX "/icons"
+    BASE icons
     FILES icons/futari_icon_1024.png
 )
 

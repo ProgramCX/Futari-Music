@@ -22,12 +22,11 @@ Item {
         return ({waiting:"等待中", uploading:"上传中", downloading:"下载中", paused:"已暂停",
                  success:"已完成", failed:"失败", cancelled:"已取消", interrupted:"中断，可继续"})[status] || status
     }
-    function currentRows() {
-        if (currentTab === 2) return appController.uploadedSongs
-        const tasks = appController.transferTasks
-        if (currentTab === 3) return tasks.filter(task => task.kind === "download" && task.status === "success")
+    function showTask(task) {
+        if (currentTab === 2) return true
+        if (currentTab === 3) return task.kind === "download" && task.status === "success"
         const kind = currentTab === 0 ? "upload" : "download"
-        return tasks.filter(task => task.kind === kind && task.status !== "success" && task.status !== "cancelled")
+        return task.kind === kind && task.status !== "success" && task.status !== "cancelled"
     }
     function batchAction(action) {
         const kind = currentTab === 0 ? "upload" : "download"
@@ -69,15 +68,18 @@ Item {
         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
         ListView {
             id: transferList
-            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 6
-            model: root.currentRows()
+            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 0
+            // A stable list model updates progress rows in place, preserving scroll and pointer input.
+            model: root.currentTab === 2 ? appController.uploadedSongs : appController.transferManager
             delegate: Rectangle {
                 required property int index
                 required property var modelData
                 readonly property var itemData: modelData
                 readonly property bool historyUpload: root.currentTab === 2
                 readonly property bool historyDownload: root.currentTab === 3
-                width: ListView.view.width; height: historyUpload ? 76 : 104; radius: Theme.radius
+                readonly property bool visibleTask: historyUpload || root.showTask(itemData)
+                width: ListView.view.width; height: !visibleTask ? 0 : historyUpload ? 76 : 104; radius: Theme.radius
+                visible: visibleTask
                 color: rowHover.hovered ? Theme.hover : Theme.surface
                 HoverHandler { id: rowHover }
                 RowLayout {

@@ -1,6 +1,7 @@
 #ifndef FUTARI_TRANSFER_MANAGER_H
 #define FUTARI_TRANSFER_MANAGER_H
 
+#include <QAbstractListModel>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QHash>
@@ -16,13 +17,16 @@
 
 struct DownloadState;
 
-class TransferManager final : public QObject {
+class TransferManager final : public QAbstractListModel {
     Q_OBJECT
     Q_DISABLE_COPY(TransferManager)
     Q_PROPERTY(QVariantList tasks READ tasks NOTIFY tasksChanged)
 public:
     explicit TransferManager(QObject *parent = nullptr);
     QVariantList tasks() const;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    QHash<int, QByteArray> roleNames() const override;
     void setContext(const QUrl &baseUrl, const QString &token, qint64 userId);
     Q_INVOKABLE QString enqueueUpload(const QVariantMap &metadata);
     Q_INVOKABLE QString enqueueDownload(const QVariantMap &song, const QString &downloadDirectory);
@@ -39,6 +43,8 @@ signals:
     void taskSucceeded(const QString &taskId, const QVariantMap &song, const QString &kind);
     void unauthorized();
 private:
+    enum TaskRole { TaskDataRole = Qt::UserRole + 1 };
+    QVariantMap taskAt(int row) const;
     int indexOf(const QString &taskId) const;
     void persist();
     void loadForCurrentUser();

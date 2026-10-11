@@ -11,8 +11,8 @@ void AppController::playSong(const QVariantMap& song) {
         return;
     }
     m_session.localPlaybackRequests.renew();
-    m_session.songCache.insert(data.value("id").toInteger(), data);
-    fetchCover(data);
+    cacheSong(data);
+    const QJsonObject completeSong = findSong(data.value("id").toInteger());
     if (m_session.roomId) {
         if (canControl()) {
             QJsonArray ids = m_session.roomState.value("songIds").toArray();
@@ -27,7 +27,7 @@ void AppController::playSong(const QVariantMap& song) {
             m_session.localQueue.append(data.value("id"));
             emit localQueueChanged();
         }
-        m_player.playSong(data);
+        m_player.playSong(completeSong);
     }
 }
 
@@ -202,10 +202,9 @@ void AppController::playLocalById(qint64 id) {
                   [this, token](const QJsonValue& value) {
                       if (token.expired() || m_session.roomId) return;
                       const QJsonObject song = value.toObject();
-                      m_session.songCache.insert(song.value("id").toInteger(), song);
+                      cacheSong(song);
                       emit songsChanged();
-                      fetchCover(song);
-                      m_player.playSong(song);
+                      m_player.playSong(findSong(song.value("id").toInteger()));
                   });
 }
 
@@ -289,8 +288,7 @@ void AppController::playNext(const QVariantMap& song) {
         emit infoMessage(QStringLiteral("这首歌曲正在播放"));
         return;
     }
-    m_session.songCache.insert(songId, data);
-    fetchCover(data);
+    cacheSong(data);
     QJsonArray ids =
         m_session.roomId ? m_session.roomState.value("songIds").toArray() : m_session.localQueue;
     for (int i = ids.size() - 1; i >= 0; --i)
@@ -327,16 +325,66 @@ void AppController::moveQueueSong(int index, int direction) {
 
 void AppController::removeQueueSong(int index) {
     if (m_session.roomId && !canControl()) return;
-    QJsonArray ids =
+    const QJsonArray ids =
         m_session.roomId ? m_session.roomState.value("songIds").toArray() : m_session.localQueue;
     if (index < 0 || index >= ids.size()) return;
-    ids.removeAt(index);
-    if (m_session.roomId)
-        publishQueue(ids);
-    else {
-        m_session.localQueue = ids;
-        emit localQueueChanged();
+    removeQueueSongs({ids.at(index).toInteger()});
+}
+
+void AppController::removeQueueSongs(const QVariantList& songIds) {
+    if (m_session.roomId && !canControl()) return;
+    QSet<qint64> removedIds;
+    for (const QVariant& value : songIds) {
+        const qint64 songId = value.toLongLong();
+        if (songId > 0) removedIds.insert(songId);
     }
+    if (!removedIds.isEmpty()) removeSongsFromPlaybackQueue(removedIds);
+}
+
+void AppController::removeSongsFromPlaybackQueue(const QSet<qint64>& songIds) {
+    if (songIds.isEmpty() || (m_session.roomId && !canControl())) return;
+    const bool roomQueue = m_session.roomId != 0;
+    const QJsonArray original = roomQueue
+        ? m_session.roomState.value("songIds").toArray() : m_session.localQueue;
+    const qint64 currentSongId = roomQueue
+        ? m_session.roomState.value("playback").toObject().value("currentSongId").toInteger()
+        : m_player.song().value("id").toLongLong();
+    const bool currentRemoved = songIds.contains(currentSongId);
+    int currentIndex = -1;
+    QJsonArray remaining;
+    for (int index = 0; index < original.size(); ++index) {
+        const qint64 songId = original.at(index).toInteger();
+        if (songId == currentSongId) currentIndex = index;
+        if (!songIds.contains(songId)) remaining.append(songId);
+    }
+    if (remaining.size() == original.size() && !currentRemoved) return;
+
+    qint64 nextSongId = 0;
+    if (currentRemoved && !remaining.isEmpty()) {
+        // Prefer the first surviving item after the removed track, then wrap to the queue head.
+        for (int index = qMax(0, currentIndex + 1); index < original.size(); ++index) {
+            const qint64 candidate = original.at(index).toInteger();
+            if (!songIds.contains(candidate)) {
+                nextSongId = candidate;
+                break;
+            }
+        }
+        if (!nextSongId) nextSongId = remaining.first().toInteger();
+    }
+
+    if (roomQueue) {
+        publishQueue(remaining);
+        if (nextSongId) sendSocket("PLAY", {{"songId", nextSongId}, {"positionMs", 0}});
+        return;
+    }
+
+    m_session.localQueue = remaining;
+    emit localQueueChanged();
+    if (!currentRemoved) return;
+    if (nextSongId)
+        playLocalById(nextSongId);
+    else
+        m_player.stop();
 }
 
 void AppController::loadLyrics(qint64 songId) {
@@ -371,9 +419,8 @@ void AppController::applyPlayback(const QJsonObject& playback) {
                               m_session.roomState.value("playback").toObject() != playback)
                               return;
                           const QJsonObject song = value.toObject();
-                          m_session.songCache.insert(song.value("id").toInteger(), song);
+                          cacheSong(song);
                           emit songsChanged();
-                          fetchCover(song);
                           applyPlayback(playback);
                       });
         return;

@@ -27,6 +27,7 @@ class PlaybackOrderTest {
     private final ObjectMapper json = new ObjectMapper();
     private final StringRedisTemplate redis = mock(StringRedisTemplate.class, RETURNS_DEEP_STUBS);
     private final SyncPublisher publisher = mock(SyncPublisher.class);
+    private final UserService users = mock(UserService.class);
     private final AtomicReference<String> stored = new AtomicReference<>();
     private RoomServiceImpl service;
 
@@ -43,7 +44,7 @@ class PlaybackOrderTest {
         var values = redis.opsForValue();
         doAnswer(inv -> { stored.set(inv.getArgument(1)); return null; }).when(values)
                 .set(eq(RedisKeys.roomState(9L)), anyString(), any(Duration.class));
-        service = new RoomServiceImpl(mapper, redis, json, mock(UserService.class), mock(SongService.class),
+        service = new RoomServiceImpl(mapper, redis, json, users, mock(SongService.class),
                 publisher, mock(PartnerService.class));
     }
 
@@ -94,5 +95,14 @@ class PlaybackOrderTest {
         assertEquals(22L, service.playback(9L).getCurrentSongId());
         assertThrows(BizException.class, () -> service.moveQueueSong(1L, 9L, 33L, 999L));
         assertThrows(BizException.class, () -> service.moveQueueSong(2L, 9L, 33L, 11L));
+    }
+
+    @Test void administratorCanControlPlaybackWithoutRoomGrant() {
+        when(redis.opsForSet().isMember(RedisKeys.roomMembers(9L), "2")).thenReturn(true);
+        when(users.hasPermission(2L, "admin")).thenReturn(true);
+
+        assertEquals(33L, service.control(2L, 9L, WsTypes.NEXT, null, null).getCurrentSongId());
+        assertEquals(PlaybackMode.SHUFFLE,
+                service.setPlaybackMode(2L, 9L, PlaybackMode.SHUFFLE).getMode());
     }
 }

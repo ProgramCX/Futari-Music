@@ -30,6 +30,11 @@ ApplicationWindow {
     Component.onCompleted: if (appController.authenticated) { width = 1320; height = 860 }
     onClosing: function(close) {
         if (window.skipRoomLeaveOnce) { window.skipRoomLeaveOnce = false; return }
+        if (appController.minimizeToTrayOnClose && trayAvailable) {
+            close.accepted = false
+            window.hide()
+            return
+        }
         if (window.roomClosePending) { close.accepted = false; return }
         if (appController.roomState.room) {
             close.accepted = false
@@ -37,6 +42,10 @@ ApplicationWindow {
             roomLeaveTimeout.start()
             appController.leaveRoomBeforeClose()
         }
+    }
+    function toggleMaximize() {
+        if (window.visibility === Window.Maximized) window.showNormal()
+        else window.showMaximized()
     }
     function finishClosing() {
         if (!window.roomClosePending) return
@@ -128,10 +137,20 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
             color: appController.authenticated ? Theme.background : Theme.authBackground
-            MouseArea {
-                anchors.fill: parent
+            DragHandler {
+                target: null
                 acceptedButtons: Qt.LeftButton
-                onPressed: { window.queueVisible = false; window.startSystemMove() }
+                onActiveChanged: {
+                    if (active) {
+                        window.queueVisible = false
+                        // 等拖动手势成立后再交给系统移动窗口，双击仍可由 TapHandler 识别。
+                        window.startSystemMove()
+                    }
+                }
+            }
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                onDoubleTapped: window.toggleMaximize()
             }
             RowLayout {
                 anchors.fill: parent

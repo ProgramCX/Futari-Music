@@ -147,10 +147,6 @@ void AppController::clearSongCache() {
     emit infoMessage(QStringLiteral("已清理未使用的歌曲缓存"));
 }
 
-void AppController::fetchCovers() {
-    for (const QJsonValue& value : m_session.songs.items) fetchCover(value.toObject());
-}
-
 void AppController::onCoversCompleted() {
     invalidateCoverCache();
     searchSongs(m_session.songs.keyword);
@@ -166,8 +162,7 @@ void AppController::onCoversCompleted() {
                   [this, token](const QJsonValue& value) {
                       if (token.expired()) return;
                       const auto song = value.toObject();
-                      m_session.songCache.insert(song.value("id").toInteger(), song);
-                      fetchCover(song);
+                      cacheSong(song);
                       emit songsChanged();
                   });
 }

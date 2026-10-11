@@ -139,6 +139,7 @@ void AppController::enterRoom(qint64 roomId) {
 
 bool AppController::canControl() const {
     if (!m_session.roomId) return true;
+    if (admin()) return true;
     if (m_session.roomState.value("room").toObject().value("ownerId").toInteger() ==
         m_session.userId)
         return true;

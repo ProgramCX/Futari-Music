@@ -54,11 +54,44 @@ Rectangle {
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 FutariToolButton { iconName: "previous"; enabled: !appController.roomState.room || appController.canControl; onClicked: appController.previousSong(); ToolTip.visible: hovered; ToolTip.text: "上一首" }
-                FutariButton {
-                    iconName: appController.player.playing ? "pause" : "play"
-                    prominent: true; accent: Theme.accent; implicitWidth: 48; implicitHeight: 42
-                    enabled: (!!appController.player.song.id || !!appController.player.song.localPath) && (!appController.roomState.room || appController.canControl)
-                    onClicked: appController.togglePlayback()
+                Item {
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 42
+                    FutariButton {
+                        anchors.fill: parent
+                        iconName: appController.player.loading ? ""
+                            : (appController.player.playing ? "pause" : "play")
+                        prominent: true
+                        accent: Theme.accent
+                        enabled: (!!appController.player.song.id || !!appController.player.song.localPath)
+                            && (!appController.roomState.room || appController.canControl)
+                        onClicked: if (!appController.player.loading) appController.togglePlayback()
+                        ToolTip.visible: hovered && appController.player.loading
+                        ToolTip.text: "正在加载歌曲"
+                    }
+                    Row {
+                        id: loadingDots
+                        anchors.centerIn: parent
+                        spacing: 4
+                        visible: appController.player.loading
+                        Repeater {
+                            model: 3
+                            delegate: Rectangle {
+                                width: 5
+                                height: 5
+                                radius: 3
+                                color: Theme.iconOnAccent
+                                SequentialAnimation on y {
+                                    running: loadingDots.visible
+                                    loops: Animation.Infinite
+                                    PauseAnimation { duration: index * 90 }
+                                    NumberAnimation { from: 0; to: -4; duration: 120; easing.type: Easing.OutCubic }
+                                    NumberAnimation { from: -4; to: 0; duration: 120; easing.type: Easing.InCubic }
+                                    PauseAnimation { duration: 420 + (2 - index) * 90 }
+                                }
+                            }
+                        }
+                    }
                 }
                 FutariToolButton {
                     iconName: "next"; enabled: appController.roomState.room ? (appController.canControl && (appController.roomState.songIds || []).length > 0) : appController.localQueue.length > 0
@@ -67,7 +100,46 @@ Rectangle {
             }
             RowLayout {
                 Text { text: root.formatTime(appController.player.position); color: Theme.muted; font.pixelSize: 11 }
-                Slider { Layout.fillWidth: true; from: 0; to: Math.max(1, appController.player.duration); value: appController.player.position; enabled: !appController.roomState.room || appController.canControl; onMoved: appController.seek(value) }
+                Slider {
+                    id: progressSlider
+                    Layout.fillWidth: true
+                    from: 0
+                    to: Math.max(1, appController.player.duration)
+                    value: appController.player.position
+                    enabled: !appController.roomState.room || appController.canControl
+                    onMoved: appController.seek(value)
+                    background: Rectangle {
+                        x: progressSlider.leftPadding
+                        y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
+                        width: progressSlider.availableWidth
+                        height: 4
+                        radius: 2
+                        color: Theme.secondary
+                        Rectangle {
+                            width: parent.width * appController.player.bufferProgress
+                            height: parent.height
+                            radius: parent.radius
+                            color: Theme.buffered
+                        }
+                        Rectangle {
+                            width: parent.width * progressSlider.position
+                            height: parent.height
+                            radius: parent.radius
+                            color: Theme.accent
+                        }
+                    }
+                    handle: Rectangle {
+                        x: progressSlider.leftPadding + progressSlider.visualPosition
+                            * (progressSlider.availableWidth - width)
+                        y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
+                        implicitWidth: 12
+                        implicitHeight: 12
+                        radius: 6
+                        color: Theme.text
+                        border.width: 2
+                        border.color: Theme.surface
+                    }
+                }
                 Text { text: root.formatTime(appController.player.duration); color: Theme.muted; font.pixelSize: 11 }
             }
         }

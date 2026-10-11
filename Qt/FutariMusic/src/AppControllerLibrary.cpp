@@ -40,11 +40,17 @@ void AppController::searchSongs(const QString& keyword) {
 }
 
 void AppController::loadMoreSongs() {
-    loadPage(m_session.songs, "api/songs", [this] {
-        cacheSongs(m_session.songs.items);
+    if (m_session.songs.loading || !hasMoreSongs()) return;
+    const qsizetype firstNewSong = m_session.songs.items.size();
+    loadPage(m_session.songs, "api/songs", [this, firstNewSong] {
+        QJsonArray loadedPage;
+        for (qsizetype index = firstNewSong; index < m_session.songs.items.size(); ++index)
+            loadedPage.append(m_session.songs.items.at(index));
+        cacheSongs(loadedPage);
         emit songsChanged();
-        fetchCovers();
-    });
+    }, 100);
+    // QML uses this notification to expose the in-flight page state and avoid duplicate requests.
+    emit songsChanged();
 }
 
 void AppController::refreshAlbums(const QString& keyword) {
@@ -215,7 +221,7 @@ void AppController::updateSong(qint64 id, const QString& audioUrl, const QString
                     [this, id, albumCoverChanged](const QJsonValue& value) {
                         invalidateCoverCache(albumCoverChanged ? 0 : id);
                         const QJsonObject updatedSong = value.toObject();
-                        if (!updatedSong.isEmpty()) m_session.songCache.insert(id, updatedSong);
+                        if (!updatedSong.isEmpty()) cacheSong(updatedSong);
                         emit infoMessage(QStringLiteral("歌曲已更新"));
                         searchSongs(m_session.songs.keyword);
                         refreshAlbums();
@@ -229,6 +235,7 @@ void AppController::deleteSong(qint64 id) {
         return;
     }
     m_api.request("DELETE", "api/songs/" + QString::number(id), {}, [this, id](const QJsonValue&) {
+        removeSongsFromPlaybackQueue(QSet<qint64>{id});
         invalidateCoverCache(id);
         m_session.songCache.remove(id);
         emit infoMessage(QStringLiteral("歌曲已删除"));
@@ -278,6 +285,7 @@ void AppController::deleteNextSong(const RequestScope::Token& token) {
         "DELETE", "api/songs/" + QString::number(id), {},
         [this, token, id](const QJsonValue&) {
             if (token.expired()) return;
+            removeSongsFromPlaybackQueue(QSet<qint64>{id});
             invalidateCoverCache(id);
             m_session.songCache.remove(id);
             m_session.songDeletionChangedData = true;
@@ -326,12 +334,13 @@ void AppController::resetPage(PageState& state, const QString& keyword) {
     state.total = 1;
 }
 
-void AppController::loadPage(PageState& state, const QString& path, std::function<void()> publish) {
+void AppController::loadPage(PageState& state, const QString& path, std::function<void()> publish,
+                             int pageSize) {
     if (state.loading || state.items.size() >= state.total) return;
     state.loading = true;
     const auto token = state.requests.token();
     const int page = state.page + 1;
-    const ApiClient::PageQuery query{page, 40, state.keyword};
+    const ApiClient::PageQuery query{page, pageSize, state.keyword};
     // state 指向控制器内固定地址的会话成员；先检查 token，再访问被替换的结果集。
     m_api.pagedGet(
         path, query,
@@ -343,16 +352,29 @@ void AppController::loadPage(PageState& state, const QString& path, std::functio
             state.loading = false;
             publish();
         },
-        [&state, token] {
-            if (!token.expired()) state.loading = false;
+        [&state, token, publish] {
+            if (token.expired()) return;
+            state.loading = false;
+            // Publish again on failure so views observe loading=false and can retry at the bottom.
+            publish();
         });
+}
+
+void AppController::cacheSong(const QJsonObject& song) {
+    const qint64 id = song.value("id").toInteger();
+    if (id <= 0) return;
+
+    // Playlist endpoints may return fewer fields than the song endpoint. Keep the richest
+    // known record so a partial queue item cannot erase its hash or cover metadata.
+    QJsonObject merged = m_session.songCache.value(id);
+    for (auto it = song.constBegin(); it != song.constEnd(); ++it) merged.insert(it.key(), it.value());
+    m_session.songCache.insert(id, merged);
+    fetchCover(merged);
 }
 
 void AppController::cacheSongs(const QJsonArray& songs) {
     for (const auto& value : songs) {
-        const QJsonObject song = value.toObject();
-        const qint64 id = song.value("id").toInteger();
-        if (id > 0) m_session.songCache.insert(id, song);
+        cacheSong(value.toObject());
     }
 }
 
