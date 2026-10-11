@@ -4,17 +4,15 @@
 #include <QAudioOutput>
 #include <QJsonObject>
 #include <QMediaPlayer>
-#include <QNetworkAccessManager>
 #include <QObject>
-#include <QPointer>
 #include <QStringList>
+#include <QVariantList>
 
-#include "utils/RequestScope.h"
+#include "AudioStreamServer.h"
 
 class ApiClient;
-class QNetworkReply;
 
-// 音频在后台下载并校验内容哈希后播放，UI 只观察属性。
+// 播放器负责媒体状态；认证、Range 转发和分片缓存由 AudioStreamServer 封装。
 class AudioPlayer final : public QObject {
     Q_OBJECT
     Q_DISABLE_COPY(AudioPlayer)
@@ -24,9 +22,11 @@ class AudioPlayer final : public QObject {
     Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
     Q_PROPERTY(qreal bufferProgress READ bufferProgress NOTIFY bufferProgressChanged)
+    Q_PROPERTY(QVariantList bufferedRanges READ bufferedRanges NOTIFY bufferedRangesChanged)
     Q_PROPERTY(qreal volume READ volume WRITE setVolume NOTIFY volumeChanged)
 public:
     explicit AudioPlayer(ApiClient *api, QObject *parent = nullptr);
+    ~AudioPlayer() override;
     QVariantMap song() const { return m_song.toVariantMap(); }
     qint64 position() const { return m_player.source().isEmpty() ? m_pendingPosition : m_player.position(); }
     qint64 duration() const {
@@ -36,6 +36,7 @@ public:
     bool playing() const { return m_player.playbackState() == QMediaPlayer::PlayingState; }
     bool loading() const { return m_loading; }
     qreal bufferProgress() const { return m_bufferProgress; }
+    QVariantList bufferedRanges() const;
     qreal volume() const { return m_output.volume(); }
     void setVolume(qreal volume);
     QString cacheDirectory() const { return m_cacheDirectory; }
@@ -57,6 +58,7 @@ signals:
     void playingChanged();
     void loadingChanged();
     void bufferProgressChanged();
+    void bufferedRangesChanged();
     void volumeChanged();
     void errorOccurred(const QString &message);
     void reachedEnd();
@@ -67,9 +69,7 @@ private:
     ApiClient *m_api;
     QMediaPlayer m_player;
     QAudioOutput m_output;
-    QNetworkAccessManager m_network;
-    // 当前音频下载；切歌/停止先失效请求，再 abort，旧回调不得触发播放。
-    QPointer<QNetworkReply> m_activeReply;
+    AudioStreamServer m_stream;
     QJsonObject m_song;
     QString m_cacheDirectory;
     // 正在播放/下载的路径不可被缓存清理删除；ephemeralPath 在停止后释放。
@@ -77,14 +77,17 @@ private:
     QString m_activePartialPath;
     QString m_ephemeralPath;
     bool m_cacheEnabled = true;
+    // Loading is only the first-source readiness phase; later range fetches keep playback active.
     bool m_loading = false;
-    // 网络传输的已缓存比例；播放界面用它显示歌曲尚未下载到本地的部分。
+    // Distinguishes a server-backed stream from a complete local file for cache-range reporting.
+    bool m_streamingSourceActive = false;
+    // Initial seek/play intent is applied once when Qt reports usable media metadata.
+    bool m_initialMediaReady = false;
+    // Highest cached byte frontier for existing bindings; the player bar renders exact intervals.
     qreal m_bufferProgress = 0;
     // 媒体加载完成前暂存用户最新 seek/play 意图；LoadedMedia 后统一应用。
     qint64 m_pendingPosition = 0;
     bool m_pendingPlay = false;
-    // 换源/停止使旧下载 token 失效，隔离下载完成事件与当前播放意图。
-    RequestScope m_sourceRequests;
 };
 
 #endif  // FUTARI_AUDIO_PLAYER_H

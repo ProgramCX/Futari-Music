@@ -115,11 +115,15 @@ Rectangle {
                         height: 4
                         radius: 2
                         color: Theme.secondary
-                        Rectangle {
-                            width: parent.width * appController.player.bufferProgress
-                            height: parent.height
-                            radius: parent.radius
-                            color: Theme.buffered
+                        Repeater {
+                            model: appController.player.bufferedRanges
+                            delegate: Rectangle {
+                                x: parent.width * modelData.start
+                                width: parent.width * Math.max(0, modelData.end - modelData.start)
+                                height: parent.height
+                                radius: parent.radius
+                                color: Theme.buffered
+                            }
                         }
                         Rectangle {
                             width: parent.width * progressSlider.position

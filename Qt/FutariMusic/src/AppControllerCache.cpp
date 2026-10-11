@@ -180,7 +180,7 @@ void AppController::clearSongCache() {
     QDir directory(directoryPath);
     const QStringList protectedPaths = m_player.protectedCachePaths();
     static const QRegularExpression cacheFilePattern(
-        QStringLiteral("^[a-f0-9]{64}\\.(mp3|flac|aac|ogg|wav|m4a)(\\.part)?$"));
+        QStringLiteral("^[a-f0-9]{64}\\.(mp3|flac|aac|ogg|wav|m4a)(\\.part(\\.ranges\\.json)?)?$"));
     for (const QFileInfo& file : directory.entryInfoList(QDir::Files | QDir::NoDotAndDotDot)) {
         if (file.isSymLink() || !cacheFilePattern.match(file.fileName()).hasMatch()) continue;
         bool protectedFile = false;

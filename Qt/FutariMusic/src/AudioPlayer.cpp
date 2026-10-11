@@ -6,11 +6,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QStandardPaths>
-#include <memory>
+
 #include <algorithm>
 
 namespace {
@@ -19,18 +17,28 @@ QByteArray hashFile(QFile &file) {
     while (!file.atEnd()) digest.addData(file.read(64 * 1024));
     return digest.result().toHex();
 }
+
 void pruneCache(const QString &directory, const QString &protectedPath) {
     constexpr qint64 maxBytes = 512LL * 1024 * 1024;
     QDir dir(directory);
-    QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+    const QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
     qint64 total = 0;
     QFileInfoList complete;
     for (const QFileInfo &file : files) {
-        if (file.suffix() == "part") {
-            if (file.lastModified().daysTo(QDateTime::currentDateTime()) > 7) QFile::remove(file.absoluteFilePath());
+        if (file.fileName().endsWith(QStringLiteral(".part.ranges.json"))) {
+            if (file.lastModified().daysTo(QDateTime::currentDateTime()) > 7)
+                QFile::remove(file.absoluteFilePath());
             continue;
         }
-        total += file.size(); complete.append(file);
+        if (file.suffix() == QStringLiteral("part")) {
+            if (file.lastModified().daysTo(QDateTime::currentDateTime()) > 7) {
+                QFile::remove(file.absoluteFilePath());
+                QFile::remove(file.absoluteFilePath() + QStringLiteral(".ranges.json"));
+            }
+            continue;
+        }
+        total += file.size();
+        complete.append(file);
     }
     std::sort(complete.begin(), complete.end(), [](const QFileInfo &left, const QFileInfo &right) {
         return left.lastModified() < right.lastModified();
@@ -41,16 +49,7 @@ void pruneCache(const QString &directory, const QString &protectedPath) {
         if (QFile::remove(file.absoluteFilePath())) total -= file.size();
     }
 }
-struct DownloadContext {
-    explicit DownloadContext(const QString &path)
-        : file(path), digest(QCryptographicHash::Sha256) {}
-    QFile file;
-    QCryptographicHash digest;
-    qint64 offset = 0;
-    bool initialized = false;
-    bool invalid = false;
-};
-}
+}  // namespace
 
 AudioPlayer::AudioPlayer(ApiClient *api, QObject *parent) : QObject(parent), m_api(api) {
     m_cacheDirectory = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/music_cache";
@@ -59,19 +58,56 @@ AudioPlayer::AudioPlayer(ApiClient *api, QObject *parent) : QObject(parent), m_a
     connect(&m_player, &QMediaPlayer::positionChanged, this, &AudioPlayer::positionChanged);
     connect(&m_player, &QMediaPlayer::durationChanged, this, &AudioPlayer::durationChanged);
     connect(&m_player, &QMediaPlayer::playbackStateChanged, this, [this] { emit playingChanged(); });
-    connect(&m_player, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
-        if (status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia) {
-            if (m_loading) { m_loading = false; emit loadingChanged(); }
-            m_player.setPosition(m_pendingPosition);
-            if (m_pendingPlay) m_player.play();
-            m_pendingPlay = false;
-        } else if (status == QMediaPlayer::EndOfMedia) emit reachedEnd();
+    connect(&m_player, &QMediaPlayer::mediaStatusChanged, this,
+            [this](QMediaPlayer::MediaStatus status) {
+                if ((status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia) &&
+                    !m_initialMediaReady) {
+                    m_initialMediaReady = true;
+                    m_player.setPosition(m_pendingPosition);
+                    if (m_loading) {
+                        m_loading = false;
+                        emit loadingChanged();
+                    }
+                    if (m_pendingPlay) m_player.play();
+                    m_pendingPlay = false;
+                } else if (status == QMediaPlayer::EndOfMedia) {
+                    emit reachedEnd();
+                }
+            });
+    connect(&m_player, &QMediaPlayer::errorOccurred, this,
+            [this](QMediaPlayer::Error, const QString &description) {
+                if (m_loading) {
+                    m_loading = false;
+                    emit loadingChanged();
+                }
+                m_pendingPlay = false;
+                emit errorOccurred(description);
+            });
+    connect(&m_stream, &AudioStreamServer::bufferedRangesChanged, this, [this] {
+        if (m_streamingSourceActive) setBufferProgress(m_stream.bufferProgress());
+        emit bufferedRangesChanged();
     });
-    connect(&m_player, &QMediaPlayer::errorOccurred, this, [this](QMediaPlayer::Error, const QString &description) {
-        if (m_loading) { m_loading = false; emit loadingChanged(); }
-        m_pendingPlay = false;
-        emit errorOccurred(description);
+    connect(&m_stream, &AudioStreamServer::cacheCompleted, this, [this] {
+        m_activePartialPath.clear();
+        m_activePlaybackPath = m_stream.completedPath();
+        pruneCache(QFileInfo(m_stream.completedPath()).absolutePath(), m_stream.completedPath());
     });
+}
+
+AudioPlayer::~AudioPlayer() {
+    m_stream.stop();
+    if (!m_ephemeralPath.isEmpty()) {
+        QFile::remove(m_ephemeralPath);
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part"));
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part.ranges.json"));
+    }
+}
+
+QVariantList AudioPlayer::bufferedRanges() const {
+    if (m_streamingSourceActive) return m_stream.bufferedRanges();
+    if (m_bufferProgress >= 1) return {QVariantMap{{QStringLiteral("start"), 0.0},
+                                                   {QStringLiteral("end"), 1.0}}};
+    return {};
 }
 
 void AudioPlayer::setCacheDirectory(const QString &directory) {
@@ -92,6 +128,7 @@ QStringList AudioPlayer::protectedCachePaths() const {
     QStringList paths;
     if (!m_activePlaybackPath.isEmpty()) paths.append(m_activePlaybackPath);
     if (!m_activePartialPath.isEmpty()) paths.append(m_activePartialPath);
+    if (!m_stream.rangesPath().isEmpty()) paths.append(m_stream.rangesPath());
     return paths;
 }
 
@@ -103,11 +140,14 @@ void AudioPlayer::setVolume(qreal volume) {
 }
 
 void AudioPlayer::restoreSong(const QJsonObject &song, qint64 positionMs) {
-    // Restored selection is paused metadata, not a playback request: loading a source here
-    // would download the whole track merely because the application started.
+    // Restored selection is paused metadata; opening its source would fetch audio before play.
+    m_stream.stop();
+    m_streamingSourceActive = false;
     m_song = song;
     m_pendingPosition = qMax<qint64>(0, positionMs);
     m_pendingPlay = false;
+    m_initialMediaReady = false;
+    setBufferProgress(0);
     emit songChanged();
     emit durationChanged();
     emit positionChanged();
@@ -121,206 +161,157 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
         emit errorOccurred(QStringLiteral("歌曲文件信息无效"));
         return;
     }
-    m_sourceRequests.renew();
-    if (m_activeReply) m_activeReply->abort();
+
+    m_stream.stop();
+    m_streamingSourceActive = false;
     m_player.stop();
     m_player.setSource({});
-    if (!m_ephemeralPath.isEmpty()) { QFile::remove(m_ephemeralPath); QFile::remove(m_ephemeralPath + ".part"); }
-    m_ephemeralPath.clear(); m_activePartialPath.clear(); m_activePlaybackPath.clear();
+    if (!m_ephemeralPath.isEmpty()) {
+        QFile::remove(m_ephemeralPath);
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part"));
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part.ranges.json"));
+    }
+    m_ephemeralPath.clear();
+    m_activePartialPath.clear();
+    m_activePlaybackPath.clear();
     m_song = song;
     m_pendingPosition = qMax<qint64>(0, positionMs);
+    m_pendingPlay = autoPlay;
+    m_initialMediaReady = false;
     emit songChanged();
     emit positionChanged();
     setBufferProgress(0);
+
     const QString persistentDirectory = m_cacheDirectory.isEmpty()
-            ? QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/music_cache" : m_cacheDirectory;
+            ? QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/music_cache"
+            : m_cacheDirectory;
     const bool persistCache = m_cacheEnabled;
-    QDir().mkpath(persistentDirectory);
+    const QString directory = persistCache
+            ? persistentDirectory
+            : QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/FutariMusicPlayback";
+    QDir().mkpath(directory);
     const QString persistentPath = persistentDirectory + "/" + hash + "." + format;
     QFile cached(persistentPath);
     if (cached.open(QIODevice::ReadOnly)) {
         const QByteArray digest = hashFile(cached);
         if (digest == hash.toLatin1()) {
             cached.close();
-            if (m_cacheEnabled) pruneCache(persistentDirectory, persistentPath);
+            if (persistCache) pruneCache(persistentDirectory, persistentPath);
+            m_activePlaybackPath = persistentPath;
             m_loading = true;
             emit loadingChanged();
             setBufferProgress(1);
-            loadFile(persistentPath, positionMs, autoPlay); return;
+            emit bufferedRangesChanged();
+            loadFile(persistentPath, positionMs, autoPlay);
+            return;
         }
         cached.close();
-        if (m_cacheEnabled) QFile::remove(persistentPath);
+        if (persistCache) QFile::remove(persistentPath);
     }
-    if (m_loading) { m_loading = false; emit loadingChanged(); }
-    m_loading = true; emit loadingChanged();
-    const auto token = m_sourceRequests.token();
-    const QString directory = persistCache ? persistentDirectory
-            : QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/FutariMusicPlayback";
-    QDir().mkpath(directory);
-    const QString path = directory + "/" + hash + "." + format;
-    if (!persistCache) m_ephemeralPath = path;
-    const QString partialPath = path + ".part";
-    m_activePartialPath = partialPath;
-    auto context = std::make_shared<DownloadContext>(partialPath);
-    if (!context->file.open(QIODevice::ReadWrite)) {
-        m_loading = false; emit loadingChanged();
-        emit errorOccurred(QStringLiteral("无法写入音乐缓存")); return;
-    }
+
     const qint64 expectedSize = song.value("fileSize").toVariant().toLongLong();
-    if (expectedSize > 0 && context->file.size() > expectedSize) context->file.resize(0);
-    context->offset = context->file.size();
-    while (!context->file.atEnd()) context->digest.addData(context->file.read(64 * 1024));
-    context->file.seek(context->offset);
-    if (expectedSize > 0 && context->offset == expectedSize && context->digest.result().toHex() == hash.toLatin1()) {
-        context->file.close();
-        if (QFile::rename(partialPath, path)) {
-            if (persistCache) pruneCache(directory, path);
-            m_activePartialPath.clear();
-            setBufferProgress(1);
-            loadFile(path, positionMs, autoPlay); return;
-        }
-        m_loading = false; emit loadingChanged();
-        emit errorOccurred(QStringLiteral("无法完成音乐缓存写入")); return;
+    const QString activeCacheBase = directory + "/" + hash + "." + format;
+    if (!persistCache) m_ephemeralPath = activeCacheBase;
+    m_loading = true;
+    emit loadingChanged();
+    const QUrl source = m_stream.start(m_api->baseUrl(), m_api->token(), hash, format,
+                                      expectedSize, directory, persistCache);
+    if (!source.isValid() || source.isEmpty()) {
+        m_loading = false;
+        emit loadingChanged();
+        emit errorOccurred(QStringLiteral("无法启动音乐流，请重试"));
+        return;
     }
-    QUrl url = m_api->baseUrl().resolved(QUrl("api/songs/" + hash + "/file"));
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", "Bearer " + m_api->token().toUtf8());
-    request.setTransferTimeout(120000);
-    if (context->offset) request.setRawHeader("Range", "bytes=" + QByteArray::number(context->offset) + "-");
-    if (expectedSize > 0) setBufferProgress(static_cast<qreal>(context->offset) / expectedSize);
-    auto *reply = m_network.get(request);
-    m_activeReply = reply;
-    connect(reply, &QNetworkReply::downloadProgress, this,
-            [this, context, expectedSize, token](qint64 received, qint64 total) {
-                if (token.expired()) return;
-                const qint64 denominator = expectedSize > 0
-                    ? expectedSize : (total > 0 ? context->offset + total : 0);
-                if (denominator > 0)
-                    setBufferProgress(static_cast<qreal>(context->offset + received) / denominator);
-            });
-    const auto consume = [this, reply, context, token] {
-        const QByteArray chunk = reply->readAll();
-        if (token.expired()) return;
-        if (!context->initialized) {
-            context->initialized = true;
-            const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            if (context->offset > 0 && status == 200) {
-                context->file.resize(0);
-                context->file.seek(0);
-                context->digest.reset();
-            } else if (context->offset > 0 && status == 206) {
-                const QByteArray expected = "bytes " + QByteArray::number(context->offset) + "-";
-                if (!reply->rawHeader("Content-Range").startsWith(expected))
-                    context->invalid = true;
-            } else if (status != 200)
-                context->invalid = true;
-        }
-        if (!context->invalid && !chunk.isEmpty()) {
-            context->digest.addData(chunk);
-            if (context->file.write(chunk) != chunk.size()) context->invalid = true;
-        }
-    };
-    connect(reply, &QNetworkReply::readyRead, this, consume);
-    connect(reply, &QNetworkReply::finished, this,
-            [this, reply, context, consume, path, partialPath, directory, hash, token, positionMs,
-             autoPlay, persistCache] {
-                if (m_activeReply == reply) m_activeReply.clear();
-                if (token.expired()) {
-                    context->file.close();
-                    if (!persistCache) QFile::remove(partialPath);
-                    reply->deleteLater();
-                    return;
-                }
-                consume();
-                context->file.flush();
-                context->file.close();
-                const bool networkOk =
-                    reply->error() == QNetworkReply::NoError &&
-                    reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 400;
-                const bool hashOk = context->digest.result().toHex() == hash.toLatin1();
-                bool stored = false;
-                if (networkOk && !context->invalid && hashOk) {
-                    QFile::remove(path);
-                    stored = QFile::rename(partialPath, path);
-                }
-                if (!stored) {
-                    const int status =
-                        reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-                    const bool resumable = reply->error() != QNetworkReply::NoError &&
-                                           (status == 200 || status == 206) && !context->invalid;
-                    if (!resumable) QFile::remove(partialPath);
-                    if (!resumable && m_activePartialPath == partialPath)
-                        m_activePartialPath.clear();
-                    if (!resumable) setBufferProgress(0);
-                    emit errorOccurred(networkOk ? QStringLiteral("下载校验或缓存写入失败")
-                                                 : reply->errorString());
-                    m_loading = false;
-                    emit loadingChanged();
-                } else {
-                    if (persistCache) pruneCache(directory, path);
-                    if (m_activePartialPath == partialPath) m_activePartialPath.clear();
-                    setBufferProgress(1);
-                    loadFile(path, positionMs, autoPlay);
-                }
-                reply->deleteLater();
-            });
+    m_streamingSourceActive = true;
+    m_activePartialPath = m_stream.partialPath();
+    m_activePlaybackPath = m_stream.completedPath();
+    setBufferProgress(m_stream.bufferProgress());
+    emit bufferedRangesChanged();
+    m_player.setSource(source);
+    // Qt's source loader fetches the first range; playback starts after metadata is ready so
+    // an initial seek is applied before sound, while later cache misses remain ordinary stalls.
 }
 
 void AudioPlayer::loadFile(const QString &path, qint64 positionMs, bool autoPlay) {
-    m_activePlaybackPath = path;
+    m_initialMediaReady = false;
     m_pendingPosition = qMax<qint64>(0, positionMs);
     m_pendingPlay = autoPlay;
     m_player.setSource(QUrl::fromLocalFile(path));
 }
 
-void AudioPlayer::pause() { m_pendingPlay = false; m_player.pause(); }
+void AudioPlayer::pause() {
+    m_pendingPlay = false;
+    m_player.pause();
+}
+
 void AudioPlayer::resume() {
     if (m_player.source().isEmpty() && !m_loading && !m_song.isEmpty()) {
         playSong(m_song, m_pendingPosition);
-    } else if (!m_loading) {
-        m_player.play();
-    } else {
+    } else if (!m_initialMediaReady) {
         m_pendingPlay = true;
+    } else {
+        m_player.play();
     }
 }
+
 void AudioPlayer::seek(qint64 positionMs) {
     m_pendingPosition = qMax<qint64>(0, positionMs);
     if (m_player.source().isEmpty()) emit positionChanged();
-    else if (!m_loading) m_player.setPosition(m_pendingPosition);
+    else if (m_initialMediaReady) m_player.setPosition(m_pendingPosition);
 }
+
 void AudioPlayer::playLocalFile(const QString &path, const QString &title, const QString &artist) {
     const QFileInfo file(path);
     if (!file.isFile() || !file.isReadable()) {
         emit errorOccurred(QStringLiteral("本地歌曲文件不存在或无法读取"));
         return;
     }
-    m_sourceRequests.renew();
-    if (m_activeReply) m_activeReply->abort();
-    m_player.stop(); m_player.setSource({});
-    if (!m_ephemeralPath.isEmpty()) { QFile::remove(m_ephemeralPath); QFile::remove(m_ephemeralPath + ".part"); }
-    m_ephemeralPath.clear(); m_activePartialPath.clear(); m_activePlaybackPath.clear();
-    m_song = QJsonObject{{"title", title}, {"artist", artist}, {"localPath", file.absoluteFilePath()}};
-    emit songChanged();
-    setBufferProgress(1);
-    m_loading = true; emit loadingChanged();
-    m_pendingPosition = 0; m_pendingPlay = true;
-    m_player.setSource(QUrl::fromLocalFile(file.absoluteFilePath()));
-    m_player.play();
-}
-void AudioPlayer::stop() {
-    m_sourceRequests.renew();
-    if (m_activeReply) m_activeReply->abort();
+    m_stream.stop();
+    m_streamingSourceActive = false;
     m_player.stop();
     m_player.setSource({});
     if (!m_ephemeralPath.isEmpty()) {
         QFile::remove(m_ephemeralPath);
-        QFile::remove(m_ephemeralPath + ".part");
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part"));
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part.ranges.json"));
     }
-    m_ephemeralPath.clear(); m_activePlaybackPath.clear(); m_activePartialPath.clear();
+    m_ephemeralPath.clear();
+    m_activePartialPath.clear();
+    m_activePlaybackPath.clear();
+    m_song = QJsonObject{{"title", title}, {"artist", artist}, {"localPath", file.absoluteFilePath()}};
+    emit songChanged();
+    setBufferProgress(1);
+    emit bufferedRangesChanged();
+    m_loading = true;
+    emit loadingChanged();
+    m_initialMediaReady = false;
+    m_pendingPosition = 0;
+    m_pendingPlay = true;
+    m_player.setSource(QUrl::fromLocalFile(file.absoluteFilePath()));
+}
+
+void AudioPlayer::stop() {
+    m_stream.stop();
+    m_streamingSourceActive = false;
+    m_player.stop();
+    m_player.setSource({});
+    if (!m_ephemeralPath.isEmpty()) {
+        QFile::remove(m_ephemeralPath);
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part"));
+        QFile::remove(m_ephemeralPath + QStringLiteral(".part.ranges.json"));
+    }
+    m_ephemeralPath.clear();
+    m_activePlaybackPath.clear();
+    m_activePartialPath.clear();
     setBufferProgress(0);
-    m_song = {}; emit songChanged();
+    m_song = {};
+    emit songChanged();
     m_pendingPosition = 0;
     m_pendingPlay = false;
+    m_initialMediaReady = false;
     emit positionChanged();
-    if (m_loading) { m_loading = false; emit loadingChanged(); }
+    if (m_loading) {
+        m_loading = false;
+        emit loadingChanged();
+    }
 }

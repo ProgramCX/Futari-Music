@@ -9,7 +9,15 @@ MenuItem {
     implicitHeight: visible ? 42 : 0
     implicitWidth: 228
     leftPadding: 12
-    rightPadding: 12
+    rightPadding: 42
+    indicator: SvgIcon {
+        x: control.width - width - 14
+        y: (control.height - height) / 2
+        name: "check"
+        color: Theme.iconAccent
+        iconSize: 16
+        visible: control.checkable && control.checked
+    }
     contentItem: RowLayout {
         spacing: 10
         SvgIcon { visible: control.iconName.length > 0; name: control.iconName; iconSize: 18; color: control.enabled ? Theme.iconPrimary : Theme.iconDisabled }

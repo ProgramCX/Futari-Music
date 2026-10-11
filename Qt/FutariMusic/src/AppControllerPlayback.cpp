@@ -437,8 +437,10 @@ void AppController::applyPlayback(const QJsonObject& playback) {
         if (qAbs(m_player.position() - position) > 500) m_player.seek(position);
         if (playing && !m_player.playing())
             m_player.resume();
-        else if (!playing && m_player.playing())
+        else if (!playing) {
+            // Cancels a pending first-play request too, even before the backend reports PlayingState.
             m_player.pause();
+        }
     }
 }
 

@@ -16,6 +16,7 @@ qt_add_executable(appFutariMusic
     src/ApiClient.h src/ApiClient.cpp
     src/MultipartRequest.h
     src/AudioPlayer.h src/AudioPlayer.cpp
+    src/AudioStreamServer.h src/AudioStreamServer.cpp
     src/AudioMetadataReader.h src/AudioMetadataReader.cpp
     src/TransferManager.h src/TransferManager.cpp
     ${FUTARI_CONTROLLER_SOURCES}
@@ -39,6 +40,7 @@ qt_add_qml_module(appFutariMusic
         qml/components/SvgIcon.qml
         qml/components/FutariButton.qml
         qml/components/FutariToolButton.qml
+        qml/components/ManagementToolItem.qml
         qml/components/FutariTextField.qml
         qml/components/FutariCheckBox.qml
         qml/components/FutariComboBox.qml
