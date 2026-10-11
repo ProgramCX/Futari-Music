@@ -51,5 +51,6 @@ CMakeUserPresets.json
 Thumbs.db
 Desktop.ini
 
+updates/
 build/
 # Source, docs, SQL, reference images and project .codex rules/skills remain tracked.
