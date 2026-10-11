@@ -1,0 +1,324 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 907,
+                        "errorMessage": "Cannot access value for name appController",
+                        "functionName": "dark",
+                        "line": 5
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 2978,
+                        "errorMessage": "",
+                        "functionName": "background",
+                        "line": 6
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 38,
+                        "durationMicroseconds": 1001,
+                        "errorMessage": "",
+                        "functionName": "surface",
+                        "line": 7
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 40,
+                        "durationMicroseconds": 679,
+                        "errorMessage": "",
+                        "functionName": "secondary",
+                        "line": 8
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 635,
+                        "errorMessage": "",
+                        "functionName": "hover",
+                        "line": 9
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 35,
+                        "durationMicroseconds": 654,
+                        "errorMessage": "",
+                        "functionName": "text",
+                        "line": 10
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 653,
+                        "errorMessage": "",
+                        "functionName": "muted",
+                        "line": 11
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 184,
+                        "errorMessage": "",
+                        "functionName": "iconPrimary",
+                        "line": 14
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 44,
+                        "durationMicroseconds": 183,
+                        "errorMessage": "",
+                        "functionName": "iconSecondary",
+                        "line": 15
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 188,
+                        "errorMessage": "",
+                        "functionName": "iconAccent",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 185,
+                        "errorMessage": "",
+                        "functionName": "iconOnAccent",
+                        "line": 17
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 659,
+                        "errorMessage": "",
+                        "functionName": "iconDisabled",
+                        "line": 18
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 641,
+                        "errorMessage": "",
+                        "functionName": "buffered",
+                        "line": 19
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 188,
+                        "errorMessage": "",
+                        "functionName": "buttonFill",
+                        "line": 20
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 183,
+                        "errorMessage": "",
+                        "functionName": "buttonHover",
+                        "line": 21
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 44,
+                        "durationMicroseconds": 178,
+                        "errorMessage": "",
+                        "functionName": "buttonPressed",
+                        "line": 22
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 49,
+                        "durationMicroseconds": 657,
+                        "errorMessage": "",
+                        "functionName": "buttonDisabledFill",
+                        "line": 23
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 186,
+                        "errorMessage": "",
+                        "functionName": "buttonText",
+                        "line": 24
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 49,
+                        "durationMicroseconds": 156,
+                        "errorMessage": "",
+                        "functionName": "buttonDisabledText",
+                        "line": 25
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 187,
+                        "errorMessage": "",
+                        "functionName": "buttonProminentText",
+                        "line": 26
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 40,
+                        "durationMicroseconds": 634,
+                        "errorMessage": "",
+                        "functionName": "fieldFill",
+                        "line": 27
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 185,
+                        "errorMessage": "",
+                        "functionName": "fieldBorder",
+                        "line": 28
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 47,
+                        "durationMicroseconds": 141,
+                        "errorMessage": "",
+                        "functionName": "fieldFocusBorder",
+                        "line": 29
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 40,
+                        "durationMicroseconds": 728,
+                        "errorMessage": "",
+                        "functionName": "checkFill",
+                        "line": 30
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 47,
+                        "durationMicroseconds": 656,
+                        "errorMessage": "",
+                        "functionName": "checkBorderHover",
+                        "line": 31
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 665,
+                        "errorMessage": "",
+                        "functionName": "checkDisabledFill",
+                        "line": 32
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 647,
+                        "errorMessage": "",
+                        "functionName": "checkDisabledMark",
+                        "line": 33
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 45,
+                        "durationMicroseconds": 177,
+                        "errorMessage": "",
+                        "functionName": "authBackground",
+                        "line": 34
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 174,
+                        "errorMessage": "",
+                        "functionName": "authSurface",
+                        "line": 35
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 40,
+                        "durationMicroseconds": 156,
+                        "errorMessage": "",
+                        "functionName": "authField",
+                        "line": 36
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 147,
+                        "errorMessage": "",
+                        "functionName": "authBorder",
+                        "line": 37
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 180,
+                        "errorMessage": "",
+                        "functionName": "authText",
+                        "line": 38
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 40,
+                        "durationMicroseconds": 281,
+                        "errorMessage": "",
+                        "functionName": "authMuted",
+                        "line": 39
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 46,
+                        "durationMicroseconds": 173,
+                        "errorMessage": "",
+                        "functionName": "authPlaceholder",
+                        "line": 40
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 241,
+                        "errorMessage": "",
+                        "functionName": "authAccent",
+                        "line": 41
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 146,
+                        "errorMessage": "",
+                        "functionName": "authAction",
+                        "line": 42
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 167,
+                        "errorMessage": "",
+                        "functionName": "authLink",
+                        "line": 43
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 628,
+                        "errorMessage": "",
+                        "functionName": "border",
+                        "line": 44
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 667,
+                        "errorMessage": "",
+                        "functionName": "modalScrim",
+                        "line": 47
+                    }
+                ],
+                "filepath": "E:/Document/Futari-Music/Qt/FutariMusic/qml/Theme.qml"
+            }
+        ],
+        "moduleId": "FutariMusic(appFutariMusic)"
+    }
+]

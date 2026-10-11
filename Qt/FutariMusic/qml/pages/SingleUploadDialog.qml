@@ -16,6 +16,11 @@ FutariDialog {
     property string audioUrl: ""
     property string lyricsUrl: ""
     property string lyricsFileName: ""
+    property string karaokeLyricsUrl: ""
+    property string karaokeLyricsFileName: ""
+    property bool useSongDirectoryForLineLyrics: true
+    property bool useSongDirectoryForKaraokeLyrics: true
+    property bool syncingLyricsDirectoryModes: false
     property string manualCoverUrl: ""
     property string embeddedCoverUrl: ""
     property string metadataAlbum: ""
@@ -33,14 +38,25 @@ FutariDialog {
     signal uploadQueued()
 
     function resetForm() {
-        audioUrl = ""; lyricsUrl = ""; lyricsFileName = ""; manualCoverUrl = ""; embeddedCoverUrl = ""
+        audioUrl = ""; lyricsUrl = ""; lyricsFileName = ""; karaokeLyricsUrl = ""; karaokeLyricsFileName = ""
+        manualCoverUrl = ""; embeddedCoverUrl = ""
         metadataAlbum = ""; metadataAlbumArtist = ""; pendingRequestId = ""; trackCandidates = []
         selectedAlbumId = 0; durationMs = 0; titleEdited = false; artistEdited = false; albumEdited = false
         newAlbumMode = false; useEmbeddedCover = false
         titleField.text = ""; artistField.text = ""
-        lyricsArea.text = ""; newAlbumNameField.text = ""; newAlbumArtistField.text = ""
+        lyricsArea.text = ""; karaokeLyricsArea.text = ""; newAlbumNameField.text = ""; newAlbumArtistField.text = ""
         metadataStatus.text = "选择音频后读取内嵌标签和封面"
-        lyricsStatus.text = "未找到歌词"
+        lyricsStatus.text = "未找到逐行歌词"; karaokeLyricsStatus.text = "未找到逐字歌词"
+        const lineUsesSongDirectory = appController.lineLyricsDirectory.length === 0
+        let karaokeUsesSongDirectory = appController.karaokeLyricsDirectory.length === 0
+        let lineUsesCurrentDirectory = lineUsesSongDirectory
+        if (lineUsesCurrentDirectory && karaokeUsesSongDirectory) {
+            // Preserve the user's last choice when both types use their audio folder.
+            lineUsesCurrentDirectory = !root.useSongDirectoryForKaraokeLyrics
+            karaokeUsesSongDirectory = root.useSongDirectoryForKaraokeLyrics && !root.useSongDirectoryForLineLyrics
+            if (!lineUsesCurrentDirectory && !karaokeUsesSongDirectory) lineUsesCurrentDirectory = true
+        }
+        root.setLyricsDirectoryModes(lineUsesCurrentDirectory, karaokeUsesSongDirectory)
         autoMetadata.checked = true; autoLyrics.checked = true
         albumChoices = [{ id: 0, name: "不关联专辑", artist: "", displayName: "不关联专辑" }]
     }
@@ -71,15 +87,32 @@ FutariDialog {
     }
     function searchLyrics() {
         if (root.audioUrl.length === 0 || !autoLyrics.checked) return
-        const match = appController.findLyricsForAudio(root.audioUrl)
-        if (match.found) {
-            root.lyricsUrl = match.url; root.lyricsFileName = match.name
-            lyricsArea.text = appController.readLyricsFile(match.url)
-            lyricsStatus.text = "已匹配歌词：" + match.name
-        } else {
-            root.lyricsUrl = ""; root.lyricsFileName = ""
-            lyricsStatus.text = "未找到同名歌词；仍可直接填写或手动选择文件"
-        }
+        const match = root.findLyricsForAudio(root.audioUrl)
+        const line = match.line || { found: false }
+        const karaoke = match.karaoke || { found: false }
+        root.lyricsUrl = line.found ? line.url : ""; root.lyricsFileName = line.found ? line.name : ""
+        root.karaokeLyricsUrl = karaoke.found ? karaoke.url : ""
+        root.karaokeLyricsFileName = karaoke.found ? karaoke.name : ""
+        lyricsArea.text = line.found ? line.text : ""
+        karaokeLyricsArea.text = karaoke.found ? karaoke.text : ""
+        lyricsStatus.text = line.found ? "已匹配逐行歌词：" + line.name : "未找到同名逐行歌词"
+        karaokeLyricsStatus.text = karaoke.found ? "已匹配逐字歌词：" + karaoke.name : "未找到同名逐字歌词"
+    }
+    function findLyricsForAudio(url) {
+        const match = appController.findLyricsForAudio(url)
+        // An unchecked source means a custom directory. Do not silently fall back to the audio folder
+        // while its folder picker has not produced a selection yet.
+        if (!root.useSongDirectoryForLineLyrics && !appController.lineLyricsDirectory.length)
+            match.line = { found: false }
+        if (!root.useSongDirectoryForKaraokeLyrics && !appController.karaokeLyricsDirectory.length)
+            match.karaoke = { found: false }
+        return match
+    }
+    function setLyricsDirectoryModes(lineUsesSongDirectory, karaokeUsesSongDirectory) {
+        root.syncingLyricsDirectoryModes = true
+        root.useSongDirectoryForLineLyrics = lineUsesSongDirectory
+        root.useSongDirectoryForKaraokeLyrics = karaokeUsesSongDirectory
+        root.syncingLyricsDirectoryModes = false
     }
     function applyAlbumMatches() {
         const matches = appController.albumMatches
@@ -112,12 +145,30 @@ FutariDialog {
         }
     }
     FileDialog {
-        id: lyricsPicker; title: "选择歌词文件"; nameFilters: ["歌词 (*.lrc *.txt)"]
+        id: lyricsPicker; title: "选择歌词文件（可多选）"; fileMode: FileDialog.OpenFiles
+        nameFilters: ["歌词 (*.lrc *.txt)"]
         onAccepted: {
-            root.lyricsUrl = selectedFile.toString(); root.lyricsFileName = selectedFile.toString().split("/").pop()
-            lyricsArea.text = appController.readLyricsFile(root.lyricsUrl)
-            lyricsStatus.text = "已选择歌词：" + root.lyricsFileName
+            for (const selected of selectedFiles) {
+                const url = selected.toString()
+                const text = appController.readLyricsFile(url)
+                const name = decodeURIComponent(url.split("/").pop())
+                if (appController.classifyLyrics(text) === "karaoke") {
+                    root.karaokeLyricsUrl = url; root.karaokeLyricsFileName = name
+                    karaokeLyricsArea.text = text; karaokeLyricsStatus.text = "已选择逐字歌词：" + name
+                } else {
+                    root.lyricsUrl = url; root.lyricsFileName = name
+                    lyricsArea.text = text; lyricsStatus.text = "已选择逐行歌词：" + name
+                }
+            }
         }
+    }
+    FolderDialog {
+        id: lineLyricsFolderPicker; title: "选择逐行歌词目录"
+        onAccepted: { appController.lineLyricsDirectory = selectedFolder.toString(); root.useSongDirectoryForLineLyrics = false; root.searchLyrics() }
+    }
+    FolderDialog {
+        id: karaokeLyricsFolderPicker; title: "选择逐字歌词目录"
+        onAccepted: { appController.karaokeLyricsDirectory = selectedFolder.toString(); root.useSongDirectoryForKaraokeLyrics = false; root.searchLyrics() }
     }
     FileDialog {
         id: coverPicker; title: "选择歌曲或专辑图片"; nameFilters: ["图片 (*.jpg *.jpeg *.png *.webp)"]
@@ -139,6 +190,18 @@ FutariDialog {
             metadataStatus.text = metadata.available ? "已读取音频标签" : "未读取到标签，已使用文件名作为歌名"
         }
         function onAlbumMatchesChanged() { if (root.metadataAlbum.length > 0 && !root.albumEdited) root.applyAlbumMatches() }
+        function onSettingsChanged() {
+            const lineUsesSongDirectory = appController.lineLyricsDirectory.length === 0
+            const karaokeUsesSongDirectory = appController.karaokeLyricsDirectory.length === 0
+            if (!lineUsesSongDirectory && !karaokeUsesSongDirectory) {
+                root.setLyricsDirectoryModes(false, false)
+            } else if (lineUsesSongDirectory && karaokeUsesSongDirectory) {
+                if (root.useSongDirectoryForLineLyrics && root.useSongDirectoryForKaraokeLyrics)
+                    root.setLyricsDirectoryModes(true, false)
+            } else {
+                root.setLyricsDirectoryModes(lineUsesSongDirectory, karaokeUsesSongDirectory)
+            }
+        }
     }
     Connections {
         target: autoMetadata
@@ -236,13 +299,29 @@ FutariDialog {
                         }
                     }
                 }
-                Text { text: "歌词"; color: Theme.text; font.weight: Font.Medium }
+                Text { text: "逐行歌词"; color: Theme.text; font.weight: Font.Medium }
+                RowLayout {
+                    Layout.fillWidth: true
+                    FutariCheckBox {
+                        text: "使用歌曲所在目录"; checked: root.useSongDirectoryForLineLyrics
+                        onToggled: {
+                            if (root.syncingLyricsDirectoryModes) return
+                            if (checked) {
+                                root.setLyricsDirectoryModes(true, false)
+                                appController.lineLyricsDirectory = ""
+                                root.searchLyrics()
+                            }
+                            else lineLyricsFolderPicker.open()
+                        }
+                    }
+                    FutariButton { visible: !root.useSongDirectoryForLineLyrics; text: appController.lineLyricsDirectory.length ? "更改目录" : "选择目录"; ToolTip.visible: hovered && appController.lineLyricsDirectory.length > 0; ToolTip.text: appController.lineLyricsDirectory; onClicked: lineLyricsFolderPicker.open() }
+                }
                 Text {
                     visible: !root.newAlbumMode && root.selectedAlbumId > 0 && root.selectedCover().length > 0
                     text: "更换现有专辑封面会同步影响该专辑下的所有歌曲。"
                     color: Theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap; Layout.fillWidth: true
                 }
-                Text { id: lyricsStatus; text: "未找到歌词"; color: Theme.muted; font.pixelSize: 12 }
+                Text { id: lyricsStatus; text: "未找到逐行歌词"; color: Theme.muted; font.pixelSize: 12 }
                 TextArea {
                     id: lyricsArea; Layout.fillWidth: true; Layout.preferredHeight: 115
                     placeholderText: "可直接填写歌词，支持 LRC 时间标签"; wrapMode: TextEdit.Wrap; selectByMouse: true
@@ -250,8 +329,41 @@ FutariDialog {
                     background: Rectangle { radius: Theme.radiusSmall; color: Theme.fieldFill; border.color: lyricsArea.activeFocus ? Theme.fieldFocusBorder : Theme.fieldBorder }
                 }
                 RowLayout {
-                    FutariButton { text: root.lyricsFileName ? "替换歌词文件" : "选择歌词文件"; onClicked: lyricsPicker.open() }
-                    FutariButton { text: "移除歌词"; enabled: root.lyricsFileName.length > 0 || lyricsArea.text.length > 0; onClicked: { root.lyricsUrl = ""; root.lyricsFileName = ""; lyricsArea.text = ""; lyricsStatus.text = "未找到歌词" } }
+                    FutariButton { text: "选择歌词文件（自动识别）"; onClicked: lyricsPicker.open() }
+                    FutariButton { text: "清空逐行歌词"; enabled: lyricsArea.text.length > 0; onClicked: { root.lyricsUrl = ""; root.lyricsFileName = ""; lyricsArea.text = ""; lyricsStatus.text = "未找到逐行歌词" } }
+                }
+                Text { text: "逐字歌词"; color: Theme.text; font.weight: Font.Medium }
+                RowLayout {
+                    Layout.fillWidth: true
+                    FutariCheckBox {
+                        text: "使用歌曲所在目录"; checked: root.useSongDirectoryForKaraokeLyrics
+                        onToggled: {
+                            if (root.syncingLyricsDirectoryModes) return
+                            if (checked) {
+                                root.setLyricsDirectoryModes(false, true)
+                                appController.karaokeLyricsDirectory = ""
+                                root.searchLyrics()
+                            }
+                            else karaokeLyricsFolderPicker.open()
+                        }
+                    }
+                    FutariButton { visible: !root.useSongDirectoryForKaraokeLyrics; text: appController.karaokeLyricsDirectory.length ? "更改目录" : "选择目录"; ToolTip.visible: hovered && appController.karaokeLyricsDirectory.length > 0; ToolTip.text: appController.karaokeLyricsDirectory; onClicked: karaokeLyricsFolderPicker.open() }
+                }
+                Text { id: karaokeLyricsStatus; text: "未找到逐字歌词"; color: Theme.muted; font.pixelSize: 12 }
+                TextArea {
+                    id: karaokeLyricsArea; Layout.fillWidth: true; Layout.preferredHeight: 115
+                    placeholderText: "可填写含 <分:秒.毫秒> 字符时间标签的 LRC"; wrapMode: TextEdit.Wrap; selectByMouse: true
+                    color: Theme.text; placeholderTextColor: Theme.muted
+                    background: Rectangle { radius: Theme.radiusSmall; color: Theme.fieldFill; border.color: karaokeLyricsArea.activeFocus ? Theme.fieldFocusBorder : Theme.fieldBorder }
+                }
+                Text {
+                    visible: appController.countLikelyCreditLines(lyricsArea.text + "\n" + karaokeLyricsArea.text) > 0
+                    text: "检测到可能的演职员信息行；请在预览中核对，必要时直接编辑歌词。"
+                    color: Theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap; Layout.fillWidth: true
+                }
+                RowLayout {
+                    Text { text: root.karaokeLyricsFileName || "逐字歌词可从上方歌词文件选择器载入"; color: Theme.muted; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                    FutariButton { text: "清空逐字歌词"; enabled: karaokeLyricsArea.text.length > 0; onClicked: { root.karaokeLyricsUrl = ""; root.karaokeLyricsFileName = ""; karaokeLyricsArea.text = ""; karaokeLyricsStatus.text = "未找到逐字歌词" } }
                 }
             }
         }
@@ -273,6 +385,7 @@ FutariDialog {
                         newAlbumName: root.newAlbumMode ? newAlbumNameField.text.trim() : "",
                         newAlbumArtist: root.newAlbumMode ? newAlbumArtistField.text.trim() : "",
                         lyricsText: lyricsArea.text,
+                        karaokeLyricsText: karaokeLyricsArea.text,
                         albumCoverPath: root.selectedCover(),
                         songCoverPath: root.selectedSongCover()
                     })

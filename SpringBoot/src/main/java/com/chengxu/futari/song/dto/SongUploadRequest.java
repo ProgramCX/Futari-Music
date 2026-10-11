@@ -20,6 +20,8 @@ public class SongUploadRequest {
     private Integer durationMs;
     @Size(max = 262144) private String lyricsText;
     private MultipartFile lyricsFile;
+    @Size(max = 262144) private String karaokeLyricsText;
+    private MultipartFile karaokeLyricsFile;
     private MultipartFile coverFile;
     private MultipartFile albumCoverFile;
     private MultipartFile songCoverFile;

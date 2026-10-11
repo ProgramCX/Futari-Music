@@ -1,0 +1,14 @@
+-I
+E:/Document/Futari-Music/build-bom-check
+-I
+D:/Qt/6.8.3/mingw_64/qml
+--resource
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/qmake_FutariMusic.qrc
+--resource
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/appFutariMusic_raw_qml_0.qrc
+--resource
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/appFutariMusic_raw_qml_0_extra_qmldirs.qrc
+--resource
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/appIconResources.qrc
+--module
+FutariMusic

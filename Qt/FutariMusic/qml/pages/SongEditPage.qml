@@ -9,9 +9,18 @@ Item {
     id: root
     property var song: ({})
     property string audioPath: ""
-    property string lyricsPath: ""
     property string coverPath: ""
     property string lyricsText: ""
+    property string karaokeLyricsText: ""
+    property string lineLyricsName: ""
+    property string karaokeLyricsName: ""
+    property string karaokeLyricsFileError: ""
+    // Dirty flags distinguish an untouched value from an intentional clear in the multipart update.
+    property bool lineLyricsChanged: false
+    property bool karaokeLyricsChanged: false
+    property bool clearLineLyrics: false
+    property bool clearKaraokeLyrics: false
+    property bool loadingLyrics: false
     property string albumName: ""
     property string newAlbumName: ""
     property bool newAlbumMode: false
@@ -27,13 +36,19 @@ Item {
         albumSelector.currentIndex = selected
     }
     function loadSong() {
-        audioPath = ""; lyricsPath = ""; coverPath = ""; newAlbumName = ""; newAlbumMode = false; lyricsArea.enabled = true; newAlbumField.text = ""
+        audioPath = ""; coverPath = ""; newAlbumName = ""; newAlbumMode = false; newAlbumField.text = ""
         titleField.text = song.title || ""
         artistField.text = song.artist || ""
         selectedAlbumId = Number(song.albumId || 0)
         albumName = song.album || ""
-        lyricsText = ""
-        lyricsArea.text = ""
+        root.loadingLyrics = true
+        lyricsText = ""; karaokeLyricsText = ""
+        lineLyricsName = ""; karaokeLyricsName = ""
+        karaokeLyricsFileError = ""
+        lineLyricsChanged = false; karaokeLyricsChanged = false
+        clearLineLyrics = false; clearKaraokeLyrics = false
+        lyricsArea.text = ""; karaokeLyricsArea.text = ""
+        root.loadingLyrics = false
         selectAlbum()
         if (song.id) appController.loadLyrics(song.id)
     }
@@ -44,8 +59,14 @@ Item {
         target: appController
         function onLyricsChanged() {
             if (Number(appController.lyrics.songId) === Number(root.song.id)) {
+                root.loadingLyrics = true
                 root.lyricsText = appController.lyrics.lyrics || ""
+                root.karaokeLyricsText = appController.lyrics.karaokeLyrics || ""
                 lyricsArea.text = root.lyricsText
+                karaokeLyricsArea.text = root.karaokeLyricsText
+                root.lineLyricsChanged = false; root.karaokeLyricsChanged = false
+                root.clearLineLyrics = false; root.clearKaraokeLyrics = false
+                root.loadingLyrics = false
             }
         }
         function onAlbumsChanged() { root.selectAlbum() }
@@ -56,8 +77,40 @@ Item {
         onAccepted: root.audioPath = selectedFile.toString()
     }
     FileDialog {
-        id: lyricsPicker; title: "替换歌词文件"; nameFilters: ["歌词文件 (*.lrc *.txt)"]
-        onAccepted: { root.lyricsPath = selectedFile.toString(); lyricsArea.enabled = false }
+        id: lyricsPicker; title: "选择歌词文件（可多选，按内容识别）"; fileMode: FileDialog.OpenFiles
+        nameFilters: ["歌词文件 (*.lrc *.txt)"]
+        onAccepted: {
+            for (const selected of selectedFiles) {
+                const url = selected.toString()
+                const text = appController.readLyricsFile(url)
+                const name = decodeURIComponent(url.split("/").pop())
+                if (appController.classifyLyrics(text) === "karaoke") {
+                    root.karaokeLyricsName = name; karaokeLyricsArea.text = text
+                    root.karaokeLyricsChanged = true; root.clearKaraokeLyrics = false
+                } else {
+                    root.lineLyricsName = name; lyricsArea.text = text
+                    root.lineLyricsChanged = true; root.clearLineLyrics = false
+                }
+            }
+        }
+    }
+    FileDialog {
+        id: karaokeLyricsPicker
+        title: "选择逐字歌词文件"
+        nameFilters: ["逐字歌词 (*.lrc *.txt)"]
+        onAccepted: {
+            const url = selectedFile.toString()
+            const text = appController.readLyricsFile(url)
+            if (appController.classifyLyrics(text) !== "karaoke") {
+                root.karaokeLyricsFileError = "文件中没有识别到逐字时间标签，请选择逐字歌词文件。"
+                return
+            }
+            root.karaokeLyricsName = decodeURIComponent(url.split("/").pop())
+            root.karaokeLyricsFileError = ""
+            karaokeLyricsArea.text = text
+            root.karaokeLyricsChanged = true
+            root.clearKaraokeLyrics = false
+        }
     }
     FileDialog {
         id: coverPicker; title: "更换专辑图片"; nameFilters: ["图片 (*.jpg *.jpeg *.png *.webp)"]
@@ -154,26 +207,84 @@ Item {
                         text: root.coverPath ? "已选择新的专辑图片" : "更换专辑图片（可选）"
                         iconName: "upload"; Layout.alignment: Qt.AlignLeft; onClicked: coverPicker.open()
                     }
-                    Text { text: "歌词"; color: Theme.text; font.weight: Font.Medium }
+                    Text { text: "逐行歌词"; color: Theme.text; font.weight: Font.Medium }
                     TextArea {
                         id: lyricsArea; Layout.fillWidth: true; Layout.preferredHeight: 180
-                        placeholderText: "编辑歌词，支持 LRC 时间标签"
+                        placeholderText: "编辑逐行歌词，支持 LRC 时间标签"
                         color: Theme.text; placeholderTextColor: Theme.muted
                         wrapMode: TextEdit.Wrap; selectByMouse: true
                         background: Rectangle { radius: Theme.radiusSmall; color: Theme.fieldFill; border.color: lyricsArea.activeFocus ? Theme.fieldFocusBorder : Theme.fieldBorder }
-                        onTextChanged: root.lyricsText = text
+                        onTextChanged: {
+                            root.lyricsText = text
+                            if (!root.loadingLyrics) {
+                                root.lineLyricsChanged = true
+                                root.clearLineLyrics = text.trim().length === 0
+                            }
+                        }
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        FutariButton { text: root.lyricsPath ? "已选择替换歌词文件" : "从 LRC/TXT 文件替换歌词"; onClicked: lyricsPicker.open() }
-                        FutariButton { text: "清除歌词文件选择"; visible: root.lyricsPath.length > 0; onClicked: { root.lyricsPath = ""; lyricsArea.enabled = true } }
+                        FutariButton { text: "选择歌词文件（自动识别）"; onClicked: lyricsPicker.open() }
+                        Text { text: root.lineLyricsName || "支持直接粘贴或编辑"; color: Theme.muted; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                        FutariButton {
+                            text: "清除逐行歌词"; enabled: lyricsArea.text.length > 0
+                            onClicked: { root.lineLyricsName = ""; lyricsArea.text = ""; root.lineLyricsChanged = true; root.clearLineLyrics = true }
+                        }
+                    }
+                    Text { text: "逐字歌词"; color: Theme.text; font.weight: Font.Medium }
+                    TextArea {
+                        id: karaokeLyricsArea; Layout.fillWidth: true; Layout.preferredHeight: 180
+                        placeholderText: "编辑逐字 LRC，字符时间标签格式如 <00:01.23>"
+                        color: Theme.text; placeholderTextColor: Theme.muted
+                        wrapMode: TextEdit.Wrap; selectByMouse: true
+                        background: Rectangle { radius: Theme.radiusSmall; color: Theme.fieldFill; border.color: karaokeLyricsArea.activeFocus ? Theme.fieldFocusBorder : Theme.fieldBorder }
+                        onTextChanged: {
+                            root.karaokeLyricsText = text
+                            if (!root.loadingLyrics) {
+                                root.karaokeLyricsChanged = true
+                                root.clearKaraokeLyrics = text.trim().length === 0
+                            }
+                        }
+                    }
+                    Text {
+                        visible: appController.countLikelyCreditLines(root.lyricsText + "\n" + root.karaokeLyricsText) > 0
+                        text: "可能包含演职员信息行；解析不会自动删掉这些内容，可在此编辑确认。"
+                        color: Theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap; Layout.fillWidth: true
+                    }
+                    Text {
+                        visible: root.karaokeLyricsFileError.length > 0
+                        text: root.karaokeLyricsFileError
+                        color: Theme.danger
+                        font.pixelSize: 12
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: root.karaokeLyricsName || "有逐字歌词时自动显示卡拉 OK 效果"; color: Theme.muted; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                        FutariButton { text: "选择逐字歌词文件"; iconName: "upload"; onClicked: karaokeLyricsPicker.open() }
+                        FutariButton {
+                            text: "清除逐字歌词"; enabled: karaokeLyricsArea.text.length > 0
+                            onClicked: { root.karaokeLyricsName = ""; root.karaokeLyricsFileError = ""; karaokeLyricsArea.text = ""; root.karaokeLyricsChanged = true; root.clearKaraokeLyrics = true }
+                        }
                         Item { Layout.fillWidth: true }
                         FutariButton { text: "取消"; onClicked: root.backRequested() }
                         FutariButton {
                             text: "保存更改"; prominent: true; enabled: titleField.text.trim().length > 0
-                            onClicked: appController.updateSong(root.song.id, root.audioPath, titleField.text, artistField.text,
-                                                                root.selectedAlbumId, root.albumName, root.newAlbumMode ? root.newAlbumName : "",
-                                                                root.lyricsText, root.lyricsPath, root.coverPath)
+                            onClicked: {
+                                const lyricChanges = ({})
+                                if (root.lineLyricsChanged) {
+                                    if (root.clearLineLyrics) lyricChanges.clearLyrics = true
+                                    else lyricChanges.lyricsText = root.lyricsText
+                                }
+                                if (root.karaokeLyricsChanged) {
+                                    if (root.clearKaraokeLyrics) lyricChanges.clearKaraokeLyrics = true
+                                    else lyricChanges.karaokeLyricsText = root.karaokeLyricsText
+                                }
+                                appController.updateSongWithLyrics(root.song.id, root.audioPath, titleField.text, artistField.text,
+                                    root.selectedAlbumId, root.albumName, root.newAlbumMode ? root.newAlbumName : "",
+                                    lyricChanges, root.coverPath)
+                            }
                         }
                     }
                 }

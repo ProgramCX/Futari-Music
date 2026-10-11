@@ -1,0 +1,92 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 21,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Could not find property \"implicitHeight\".",
+                        "functionName": "implicitHeight",
+                        "line": 9
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 118,
+                        "errorMessage": "Cannot access value for name control",
+                        "functionName": "visible",
+                        "line": 15
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 63,
+                        "durationMicroseconds": 22,
+                        "errorMessage": "Cannot access value for name control",
+                        "functionName": "name",
+                        "line": 15
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 102,
+                        "durationMicroseconds": 21,
+                        "errorMessage": "Cannot access value for name control",
+                        "functionName": "color",
+                        "line": 15
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 22,
+                        "durationMicroseconds": 22,
+                        "errorMessage": "Cannot access value for name control",
+                        "functionName": "text",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 67,
+                        "durationMicroseconds": 20,
+                        "errorMessage": "Cannot access value for name control",
+                        "functionName": "color",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 138,
+                        "durationMicroseconds": 287,
+                        "errorMessage": "Cannot access value for name Text",
+                        "functionName": "elide",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 174,
+                        "durationMicroseconds": 180,
+                        "errorMessage": "Cannot access value for name Text",
+                        "functionName": "verticalAlignment",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 17,
+                        "durationMicroseconds": 118,
+                        "errorMessage": "Cannot access value for name Theme",
+                        "functionName": "radius",
+                        "line": 19
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 16,
+                        "durationMicroseconds": 18,
+                        "errorMessage": "Cannot access value for name control",
+                        "functionName": "color",
+                        "line": 21
+                    }
+                ],
+                "filepath": "E:/Document/Futari-Music/Qt/FutariMusic/qml/components/FutariMenuItem.qml"
+            }
+        ],
+        "moduleId": "FutariMusic(appFutariMusic)"
+    }
+]

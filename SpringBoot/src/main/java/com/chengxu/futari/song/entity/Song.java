@@ -15,6 +15,7 @@ public class Song {
     private Long albumId;
     private String album;
     @TableField(select = false) private String lyrics;
+    @TableField(select = false) private String karaokeLyrics;
     private Boolean hasLyrics;
     private String coverHash;
     private String coverFormat;

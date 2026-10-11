@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QSet>
+#include <QStringList>
 #include <QSettings>
 #include <QTimer>
 #include <QWebSocket>
@@ -13,6 +14,7 @@
 
 #include "ApiClient.h"
 #include "CoverCompletionController.h"
+#include "LyricsCompletionController.h"
 #include "AudioMetadataReader.h"
 #include "AudioPlayer.h"
 #include "TransferManager.h"
@@ -37,6 +39,12 @@ class AppController final : public QObject {
     Q_PROPERTY(bool hasMoreUploadedSongs READ hasMoreUploadedSongs NOTIFY uploadedSongsChanged)
     Q_PROPERTY(QString downloadDirectory READ downloadDirectory WRITE setDownloadDirectory NOTIFY
                    settingsChanged)
+    Q_PROPERTY(QString lineLyricsDirectory READ lineLyricsDirectory WRITE setLineLyricsDirectory
+                   NOTIFY settingsChanged)
+    Q_PROPERTY(QString karaokeLyricsDirectory READ karaokeLyricsDirectory WRITE
+                   setKaraokeLyricsDirectory NOTIFY settingsChanged)
+    Q_PROPERTY(QString lyricsDisplayMode READ lyricsDisplayMode WRITE setLyricsDisplayMode
+                   NOTIFY settingsChanged)
     Q_PROPERTY(bool cacheEnabled READ cacheEnabled WRITE setCacheEnabled NOTIFY settingsChanged)
     Q_PROPERTY(
         QString cacheDirectory READ cacheDirectory WRITE setCacheDirectory NOTIFY settingsChanged)
@@ -76,6 +84,7 @@ class AppController final : public QObject {
     Q_PROPERTY(int unreadInvites READ unreadInvites NOTIFY invitesChanged)
     Q_PROPERTY(AudioPlayer* player READ player CONSTANT)
     Q_PROPERTY(CoverCompletionController* coverCompletion READ coverCompletion CONSTANT)
+    Q_PROPERTY(LyricsCompletionController* lyricsCompletion READ lyricsCompletion CONSTANT)
     Q_PROPERTY(QString playbackMode READ playbackMode NOTIFY playbackModeChanged)
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -98,6 +107,12 @@ public:
     }
     QString downloadDirectory() const;
     void setDownloadDirectory(const QString& directory);
+    QString lineLyricsDirectory() const;
+    void setLineLyricsDirectory(const QString& directory);
+    QString karaokeLyricsDirectory() const;
+    void setKaraokeLyricsDirectory(const QString& directory);
+    QString lyricsDisplayMode() const;
+    void setLyricsDisplayMode(const QString& mode);
     bool cacheEnabled() const { return m_settings.value("cacheEnabled", true).toBool(); }
     void setCacheEnabled(bool enabled);
     QString cacheDirectory() const;
@@ -148,6 +163,7 @@ public:
     int unreadInvites() const { return m_session.invites.size(); }
     AudioPlayer* player() { return &m_player; }
     CoverCompletionController* coverCompletion() { return &m_coverCompletion; }
+    LyricsCompletionController* lyricsCompletion() { return &m_lyricsCompletion; }
 
     Q_INVOKABLE void login(const QString& username, const QString& password);
     Q_INVOKABLE void registerAccount(const QString& username, const QString& nickname,
@@ -166,8 +182,11 @@ public:
     Q_INVOKABLE void clearSongCache();
     Q_INVOKABLE void searchAlbumMatches(const QString& name, const QString& artist);
     Q_INVOKABLE void inspectAudio(const QString& audioUrl, const QString& requestId);
-    Q_INVOKABLE QVariantMap findLyricsForAudio(const QString& audioUrl) const;
+    Q_INVOKABLE QVariantMap findLyricsForAudio(const QString& audioUrl);
     Q_INVOKABLE QString readLyricsFile(const QString& lyricsUrl) const;
+    Q_INVOKABLE QString classifyLyrics(const QString& text) const;
+    Q_INVOKABLE QVariantList parseLyrics(const QString& text) const;
+    Q_INVOKABLE int countLikelyCreditLines(const QString& text) const;
     Q_INVOKABLE void refreshRooms();
     Q_INVOKABLE void loadMoreRooms();
     Q_INVOKABLE void createRoom(const QString& name);
@@ -239,6 +258,12 @@ public:
                                 const QString& artist, qint64 albumId, const QString& albumName,
                                 const QString& newAlbumName, const QString& lyrics,
                                 const QString& lyricsUrl, const QString& coverUrl);
+    Q_INVOKABLE void updateSongWithLyrics(qint64 id, const QString& audioUrl,
+                                          const QString& title, const QString& artist,
+                                          qint64 albumId, const QString& albumName,
+                                          const QString& newAlbumName,
+                                          const QVariantMap& lyricChanges,
+                                          const QString& coverUrl);
     Q_INVOKABLE void deleteSong(qint64 id);
     Q_INVOKABLE void deleteSongs(const QVariantList& songIds);
     Q_INVOKABLE QVariantList guessTrackMetadata(const QString& audioUrl) const;
@@ -289,6 +314,7 @@ private:
     void advanceLocalQueue(AdvanceReason reason);
     bool isStalePlayback(const QJsonObject& playback) const;
     void onCoversCompleted();
+    void onLyricsCompleted();
     void restorePreferences();
     void setupConnections();
     void setupSocket();
@@ -331,6 +357,7 @@ private:
     void fetchCover(const QJsonObject& song);
     void invalidateCoverCache(qint64 songId = 0);
     void pruneCoverCache(const QString& protectedPath);
+    QStringList lyricsFilesInDirectory(const QString& directory);
     void setError(const QString& message);
     void clearSession();
     void leavePreviousRoom();
@@ -338,6 +365,7 @@ private:
     static QString segment(const QString& value);
     ApiClient m_api;
     CoverCompletionController m_coverCompletion;
+    LyricsCompletionController m_lyricsCompletion;
     AudioMetadataReader m_metadataReader;
     TransferManager m_transfers;
     AudioPlayer m_player;
@@ -345,6 +373,8 @@ private:
     QTimer m_reconnect;
     QTimer m_heartbeat;
     QSettings m_settings;
+    // The directory index is shared by batch uploads; changing a configured root invalidates it.
+    QHash<QString, QStringList> m_lyricsFileIndex;
     // 持久偏好与登录页记忆，不属于可清空的账号会话。
     QString m_username;
     QString m_errorMessage;

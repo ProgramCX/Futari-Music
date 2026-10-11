@@ -1,0 +1,38 @@
+{
+    "classes": [
+        {
+            "className": "ApiClient",
+            "lineNumber": 16,
+            "object": true,
+            "qualifiedClassName": "ApiClient",
+            "signals": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "message",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 0,
+                    "name": "errorOccurred",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 1,
+                    "name": "unauthorized",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "ApiClient.h",
+    "outputRevision": 68
+}

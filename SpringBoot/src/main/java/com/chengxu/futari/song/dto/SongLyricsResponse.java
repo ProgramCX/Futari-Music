@@ -8,4 +8,5 @@ import lombok.Getter;
 public class SongLyricsResponse {
     private Long songId;
     private String lyrics;
+    private String karaokeLyrics;
 }

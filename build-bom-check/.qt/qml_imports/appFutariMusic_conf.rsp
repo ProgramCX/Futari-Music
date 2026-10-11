@@ -1,0 +1,16 @@
+-rootPath
+E:/Document/Futari-Music/Qt/FutariMusic
+-cmake-output
+-output-file
+E:/Document/Futari-Music/build-bom-check/.qt/qml_imports/appFutariMusic_conf.cmake
+-importPath
+E:/Document/Futari-Music/build-bom-check/FutariMusic
+-importPath
+E:/Document/Futari-Music/build-bom-check
+-importPath
+D:/Qt/6.8.3/mingw_64/qml
+-qrcFiles
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/qmake_FutariMusic.qrc
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/appFutariMusic_raw_qml_0.qrc
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/appFutariMusic_raw_qml_0_extra_qmldirs.qrc
+E:/Document/Futari-Music/build-bom-check/.qt/rcc/appIconResources.qrc

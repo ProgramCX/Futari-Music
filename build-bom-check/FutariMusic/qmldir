@@ -1,0 +1,41 @@
+module FutariMusic
+typeinfo appFutariMusic.qmltypes
+prefer :/qt/qml/FutariMusic/
+Main 1.0 qml/Main.qml
+singleton Theme 1.0 qml/Theme.qml
+Sidebar 1.0 qml/components/Sidebar.qml
+PlayerBar 1.0 qml/components/PlayerBar.qml
+SongRow 1.0 qml/components/SongRow.qml
+BatchSongToolbar 1.0 qml/components/BatchSongToolbar.qml
+QueueDrawer 1.0 qml/components/QueueDrawer.qml
+KaraokeLine 1.0 qml/components/KaraokeLine.qml
+SvgIcon 1.0 qml/components/SvgIcon.qml
+FutariButton 1.0 qml/components/FutariButton.qml
+FutariToolButton 1.0 qml/components/FutariToolButton.qml
+FutariTextField 1.0 qml/components/FutariTextField.qml
+FutariCheckBox 1.0 qml/components/FutariCheckBox.qml
+FutariComboBox 1.0 qml/components/FutariComboBox.qml
+PopupSurface 1.0 qml/components/PopupSurface.qml
+FutariMenu 1.0 qml/components/FutariMenu.qml
+FutariMenuItem 1.0 qml/components/FutariMenuItem.qml
+FutariMenuSeparator 1.0 qml/components/FutariMenuSeparator.qml
+FutariDialog 1.0 qml/components/FutariDialog.qml
+UploadMenuButton 1.0 qml/components/UploadMenuButton.qml
+LoginPage 1.0 qml/pages/LoginPage.qml
+LibraryPage 1.0 qml/pages/LibraryPage.qml
+RoomPage 1.0 qml/pages/RoomPage.qml
+PartnerPage 1.0 qml/pages/PartnerPage.qml
+PlaylistPage 1.0 qml/pages/PlaylistPage.qml
+MessagesPage 1.0 qml/pages/MessagesPage.qml
+LyricsPage 1.0 qml/pages/LyricsPage.qml
+AdminPage 1.0 qml/pages/AdminPage.qml
+ManagementToolsPage 1.0 qml/pages/ManagementToolsPage.qml
+CoverCompletionDialog 1.0 qml/pages/CoverCompletionDialog.qml
+LyricsCompletionDialog 1.0 qml/pages/LyricsCompletionDialog.qml
+AccountPage 1.0 qml/pages/AccountPage.qml
+SongEditPage 1.0 qml/pages/SongEditPage.qml
+TransferPage 1.0 qml/pages/TransferPage.qml
+SettingsPage 1.0 qml/pages/SettingsPage.qml
+SingleUploadDialog 1.0 qml/pages/SingleUploadDialog.qml
+BatchUploadDialog 1.0 qml/pages/BatchUploadDialog.qml
+

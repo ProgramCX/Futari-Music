@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="/qt/qml/FutariMusic">E:/Document/Futari-Music/build-bom-check/FutariMusic</file>
+
+  </qresource>
+</RCC>

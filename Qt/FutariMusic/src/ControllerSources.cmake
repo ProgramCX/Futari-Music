@@ -2,6 +2,8 @@
 set(FUTARI_CONTROLLER_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/CoverCompletionController.h
     ${CMAKE_CURRENT_LIST_DIR}/CoverCompletionController.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/LyricsCompletionController.h
+    ${CMAKE_CURRENT_LIST_DIR}/LyricsCompletionController.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AppController.h
     ${CMAKE_CURRENT_LIST_DIR}/AppController.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AppControllerLibrary.cpp
@@ -13,5 +15,7 @@ set(FUTARI_CONTROLLER_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/AppControllerSocket.cpp
     ${CMAKE_CURRENT_LIST_DIR}/models/SessionState.h
     ${CMAKE_CURRENT_LIST_DIR}/models/PageState.h
+    ${CMAKE_CURRENT_LIST_DIR}/utils/LyricsParser.h
+    ${CMAKE_CURRENT_LIST_DIR}/utils/LyricsParser.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/RequestScope.h
 )

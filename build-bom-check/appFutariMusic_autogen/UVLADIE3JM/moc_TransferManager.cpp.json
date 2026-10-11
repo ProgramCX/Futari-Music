@@ -1,0 +1,194 @@
+{
+    "classes": [
+        {
+            "className": "TransferManager",
+            "lineNumber": 20,
+            "methods": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "metadata",
+                            "type": "QVariantMap"
+                        }
+                    ],
+                    "index": 3,
+                    "name": "enqueueUpload",
+                    "returnType": "QString"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "song",
+                            "type": "QVariantMap"
+                        },
+                        {
+                            "name": "downloadDirectory",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 4,
+                    "name": "enqueueDownload",
+                    "returnType": "QString"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "taskId",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 5,
+                    "name": "pauseTask",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "taskId",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 6,
+                    "name": "resumeTask",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "taskId",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 7,
+                    "name": "cancelTask",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "taskId",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 8,
+                    "name": "retryTask",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "kind",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 9,
+                    "name": "pauseAll",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "kind",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 10,
+                    "name": "resumeAll",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "kind",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 11,
+                    "name": "cancelAll",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "kind",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 12,
+                    "name": "removeFinishedTasks",
+                    "returnType": "void"
+                }
+            ],
+            "object": true,
+            "properties": [
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 0,
+                    "name": "tasks",
+                    "notify": "tasksChanged",
+                    "read": "tasks",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                }
+            ],
+            "qualifiedClassName": "TransferManager",
+            "signals": [
+                {
+                    "access": "public",
+                    "index": 0,
+                    "name": "tasksChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "taskId",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "song",
+                            "type": "QVariantMap"
+                        },
+                        {
+                            "name": "kind",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 1,
+                    "name": "taskSucceeded",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 2,
+                    "name": "unauthorized",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QAbstractListModel"
+                }
+            ]
+        }
+    ],
+    "inputFile": "TransferManager.h",
+    "outputRevision": 68
+}

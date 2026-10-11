@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="/qt/qml/FutariMusic/">
+    <file alias="qml/qmldir">E:/Document/Futari-Music/build-bom-check/FutariMusic/qml/qmldir</file>
+    <file alias="qml/components/qmldir">E:/Document/Futari-Music/build-bom-check/FutariMusic/qml/components/qmldir</file>
+    <file alias="qml/pages/qmldir">E:/Document/Futari-Music/build-bom-check/FutariMusic/qml/pages/qmldir</file>
+  </qresource>
+</RCC>
+

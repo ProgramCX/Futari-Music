@@ -17,6 +17,7 @@ Item {
     }
     FolderDialog { id: downloadDirectoryPicker; title: "选择下载目录"; onAccepted: appController.downloadDirectory = selectedFolder.toString() }
     FolderDialog { id: cacheDirectoryPicker; title: "选择歌曲缓存目录"; onAccepted: appController.cacheDirectory = selectedFolder.toString() }
+    ButtonGroup { id: lyricDisplayModeGroup; exclusive: true }
 
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 28; spacing: 0
@@ -50,6 +51,16 @@ Item {
                     contentItem: Text { text: downloadsTab.text; color: downloadsTab.checked ? Theme.accent : Theme.muted; font.pixelSize: 14; font.weight: downloadsTab.checked ? Font.DemiBold : Font.Normal; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 }
                 TabButton {
+                    id: lyricsTab
+                    text: "歌词设置"
+                    background: Rectangle {
+                        color: lyricsTab.hovered ? Theme.hover : "transparent"
+                        radius: Theme.radiusSmall
+                        Rectangle { visible: lyricsTab.checked; width: lyricsTab.contentItem.implicitWidth; height: 3; radius: 2; color: Theme.accent; anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter }
+                    }
+                    contentItem: Text { text: lyricsTab.text; color: lyricsTab.checked ? Theme.accent : Theme.muted; font.pixelSize: 14; font.weight: lyricsTab.checked ? Font.DemiBold : Font.Normal; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                }
+                TabButton {
                     id: updatesTab
                     text: "更新与升级"
                     background: Rectangle {
@@ -68,7 +79,9 @@ Item {
             contentWidth: width
             contentHeight: (root.activeTab === 0
                 ? generalColumn.implicitHeight
-                : root.activeTab === 1 ? settingsColumn.implicitHeight : updateSettingsColumn.implicitHeight) + 40
+                : root.activeTab === 1 ? settingsColumn.implicitHeight
+                : root.activeTab === 2 ? lyricsSettingsColumn.implicitHeight
+                : updateSettingsColumn.implicitHeight) + 40
             boundsBehavior: Flickable.StopAtBounds
             ColumnLayout {
                 id: generalColumn
@@ -263,9 +276,69 @@ Item {
                 }
             }
             ColumnLayout {
-                id: updateSettingsColumn
+                id: lyricsSettingsColumn
                 x: 10; y: 20; width: content.width - 20; height: implicitHeight; spacing: 0
                 visible: root.activeTab === 2
+                Text { text: "歌词设置"; color: Theme.text; font.pixelSize: 19; font.bold: true; Layout.bottomMargin: 8 }
+                Text {
+                    text: "选择逐字歌词的显示方式。自动模式会优先显示逐字卡拉 OK 歌词，没有逐字歌词时回退到逐行歌词。"
+                    color: Theme.muted; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.bottomMargin: 16
+                }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border; Layout.bottomMargin: 18 }
+                Text { text: "歌词显示方式"; color: Theme.text; font.pixelSize: 15; font.weight: Font.Medium; Layout.bottomMargin: 8 }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    RadioButton {
+                        id: automaticLyricsOption
+                        text: "自动卡拉 OK"
+                        ButtonGroup.group: lyricDisplayModeGroup
+                        checked: appController.lyricsDisplayMode === "automatic"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+                        onClicked: appController.lyricsDisplayMode = "automatic"
+                        background: Rectangle { color: automaticLyricsOption.hovered ? Theme.hover : "transparent"; radius: Theme.radiusSmall }
+                        indicator: Rectangle {
+                            x: 10; y: (automaticLyricsOption.height - height) / 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: "transparent"
+                            border.width: automaticLyricsOption.activeFocus ? 3 : 2
+                            border.color: automaticLyricsOption.checked || automaticLyricsOption.hovered ? Theme.accent : Theme.border
+                            Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: Theme.accent; visible: automaticLyricsOption.checked }
+                        }
+                        contentItem: Text {
+                            text: automaticLyricsOption.text; color: Theme.text; font.pixelSize: 14
+                            leftPadding: automaticLyricsOption.indicator.width + 20; rightPadding: 10; verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                    RadioButton {
+                        id: lineLyricsOption
+                        text: "仅逐行歌词"
+                        ButtonGroup.group: lyricDisplayModeGroup
+                        checked: appController.lyricsDisplayMode === "line"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+                        onClicked: appController.lyricsDisplayMode = "line"
+                        background: Rectangle { color: lineLyricsOption.hovered ? Theme.hover : "transparent"; radius: Theme.radiusSmall }
+                        indicator: Rectangle {
+                            x: 10; y: (lineLyricsOption.height - height) / 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: "transparent"
+                            border.width: lineLyricsOption.activeFocus ? 3 : 2
+                            border.color: lineLyricsOption.checked || lineLyricsOption.hovered ? Theme.accent : Theme.border
+                            Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: Theme.accent; visible: lineLyricsOption.checked }
+                        }
+                        contentItem: Text {
+                            text: lineLyricsOption.text; color: Theme.text; font.pixelSize: 14
+                            leftPadding: lineLyricsOption.indicator.width + 20; rightPadding: 10; verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+            }
+            ColumnLayout {
+                id: updateSettingsColumn
+                x: 10; y: 20; width: content.width - 20; height: implicitHeight; spacing: 0
+                visible: root.activeTab === 3
                 Text { text: "更新与升级"; color: Theme.text; font.pixelSize: 19; font.bold: true; Layout.bottomMargin: 8 }
                 Text { text: "检查当前服务器对应的兼容客户端版本，并按本机系统下载安装包。"; color: Theme.muted; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.bottomMargin: 16 }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border; Layout.bottomMargin: 18 }

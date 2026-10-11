@@ -20,6 +20,10 @@ public class SongUpdateRequest {
     private Integer durationMs;
     @Size(max = 262144) private String lyricsText;
     private MultipartFile lyricsFile;
+    @Size(max = 262144) private String karaokeLyricsText;
+    private MultipartFile karaokeLyricsFile;
+    private Boolean clearLyrics;
+    private Boolean clearKaraokeLyrics;
     private MultipartFile albumCoverFile;
     private MultipartFile songCoverFile;
 }

@@ -59,6 +59,53 @@ void AppController::setDownloadDirectory(const QString& directory) {
     emit settingsChanged();
 }
 
+QString AppController::lineLyricsDirectory() const {
+    return m_settings.value("lineLyricsDirectory").toString();
+}
+
+void AppController::setLineLyricsDirectory(const QString& directory) {
+    const QUrl selected(directory.trimmed());
+    const QString value = selected.isLocalFile() ? selected.toLocalFile() : directory.trimmed();
+    const QString path = value.isEmpty() ? QString() : QDir::cleanPath(QFileInfo(value).absoluteFilePath());
+    if (!path.isEmpty() && !QFileInfo(path).isDir()) {
+        setError(QStringLiteral("逐行歌词目录不存在，请重新选择"));
+        return;
+    }
+    if (lineLyricsDirectory() == path) return;
+    m_settings.setValue("lineLyricsDirectory", path);
+    m_lyricsFileIndex.clear();
+    emit settingsChanged();
+}
+
+QString AppController::karaokeLyricsDirectory() const {
+    return m_settings.value("karaokeLyricsDirectory").toString();
+}
+
+void AppController::setKaraokeLyricsDirectory(const QString& directory) {
+    const QUrl selected(directory.trimmed());
+    const QString value = selected.isLocalFile() ? selected.toLocalFile() : directory.trimmed();
+    const QString path = value.isEmpty() ? QString() : QDir::cleanPath(QFileInfo(value).absoluteFilePath());
+    if (!path.isEmpty() && !QFileInfo(path).isDir()) {
+        setError(QStringLiteral("逐字歌词目录不存在，请重新选择"));
+        return;
+    }
+    if (karaokeLyricsDirectory() == path) return;
+    m_settings.setValue("karaokeLyricsDirectory", path);
+    m_lyricsFileIndex.clear();
+    emit settingsChanged();
+}
+
+QString AppController::lyricsDisplayMode() const {
+    return m_settings.value("lyricsDisplayMode", QStringLiteral("automatic")).toString();
+}
+
+void AppController::setLyricsDisplayMode(const QString& mode) {
+    const QString normalized = mode == QStringLiteral("line") ? mode : QStringLiteral("automatic");
+    if (lyricsDisplayMode() == normalized) return;
+    m_settings.setValue("lyricsDisplayMode", normalized);
+    emit settingsChanged();
+}
+
 void AppController::setCacheDirectory(const QString& directory) {
     const QUrl selected(directory.trimmed());
     const QString trimmed = selected.isLocalFile() ? selected.toLocalFile() : directory.trimmed();
@@ -165,6 +212,16 @@ void AppController::onCoversCompleted() {
                       cacheSong(song);
                       emit songsChanged();
                   });
+}
+
+void AppController::onLyricsCompleted() {
+    searchSongs(m_session.songs.keyword);
+    refreshUploadedSongs();
+    refreshPlaylists();
+    refreshServerPlaylists();
+    const qint64 songId = m_player.song().value("id").toLongLong();
+    if (songId > 0) loadLyrics(songId);
+    emit infoMessage(QStringLiteral("歌词补全处理已结束"));
 }
 
 void AppController::fetchCover(const QJsonObject& song) {

@@ -353,6 +353,7 @@ void TransferManager::startUpload(const QString &taskId) {
         appendText(parts, QStringLiteral("newAlbumArtist"), task.value("newAlbumArtist").toString());
     }
     if (task.contains("lyricsText")) appendText(parts, QStringLiteral("lyricsText"), task.value("lyricsText").toString());
+    if (task.contains("karaokeLyricsText")) appendText(parts, QStringLiteral("karaokeLyricsText"), task.value("karaokeLyricsText").toString());
     const QString albumCoverPath = task.value("albumCoverPath").toString();
     const QString songCoverPath = task.value("songCoverPath").toString();
     valid = appendFile(parts, QStringLiteral("albumCoverFile"), albumCoverPath) && valid;

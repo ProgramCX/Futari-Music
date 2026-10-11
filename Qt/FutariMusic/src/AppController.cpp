@@ -7,6 +7,7 @@ AppController::AppController(QObject* parent)
     : QObject(parent),
       m_api(this),
       m_coverCompletion(&m_api, this),
+      m_lyricsCompletion(&m_api, this),
       m_metadataReader(this),
       m_transfers(this),
       m_player(&m_api, this),
@@ -52,12 +53,20 @@ void AppController::restorePreferences() {
 
 void AppController::setupConnections() {
     connect(&m_coverCompletion, &CoverCompletionController::errorOccurred, this, &AppController::setError);
+    connect(&m_lyricsCompletion, &LyricsCompletionController::errorOccurred, this,
+            &AppController::setError);
     connect(this, &AppController::sessionChanged, this,
             [this] { m_coverCompletion.reset(authenticated() && admin()); });
+    connect(this, &AppController::sessionChanged, this,
+            [this] { m_lyricsCompletion.reset(authenticated() && admin()); });
     connect(this, &AppController::serverUrlChanged, this,
             [this] { m_coverCompletion.reset(authenticated() && admin()); });
+    connect(this, &AppController::serverUrlChanged, this,
+            [this] { m_lyricsCompletion.reset(authenticated() && admin()); });
     connect(&m_coverCompletion, &CoverCompletionController::completionFinished, this,
             &AppController::onCoversCompleted);
+    connect(&m_lyricsCompletion, &LyricsCompletionController::completionFinished, this,
+            &AppController::onLyricsCompleted);
     connect(this, &AppController::roomStateChanged, this, &AppController::playbackModeChanged);
     connect(&m_player, &AudioPlayer::volumeChanged, this,
             [this] { m_settings.setValue("playerVolume", m_player.volume()); });

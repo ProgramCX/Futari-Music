@@ -1,0 +1,54 @@
+{
+    "classes": [
+        {
+            "className": "AudioMetadataReader",
+            "lineNumber": 8,
+            "methods": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "audioUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "requestId",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 1,
+                    "name": "inspect",
+                    "returnType": "void"
+                }
+            ],
+            "object": true,
+            "qualifiedClassName": "AudioMetadataReader",
+            "signals": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "requestId",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "metadata",
+                            "type": "QVariantMap"
+                        }
+                    ],
+                    "index": 0,
+                    "name": "metadataReady",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "AudioMetadataReader.h",
+    "outputRevision": 68
+}

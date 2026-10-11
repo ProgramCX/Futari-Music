@@ -1,0 +1,44 @@
+{
+    "classes": [
+        {
+            "className": "NotificationService",
+            "lineNumber": 14,
+            "object": true,
+            "qualifiedClassName": "NotificationService",
+            "signals": [
+                {
+                    "access": "public",
+                    "index": 0,
+                    "name": "activated",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 1,
+                    "name": "messageClicked",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 2,
+                    "name": "showMainWindowRequested",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 3,
+                    "name": "exitRequested",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "NotificationService.h",
+    "outputRevision": 68
+}

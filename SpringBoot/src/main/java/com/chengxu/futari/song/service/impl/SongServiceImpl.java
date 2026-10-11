@@ -20,9 +20,6 @@ import com.chengxu.futari.song.mapper.SongMapper;
 import com.chengxu.futari.song.service.SongService;
 import com.chengxu.futari.song.service.AlbumService;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.MessageDigest;
@@ -47,7 +44,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j @Service @RequiredArgsConstructor
 public class SongServiceImpl implements SongService {
     private static final Set<String> FORMATS = Set.of("mp3", "flac", "aac", "ogg", "wav", "m4a");
-    private static final Set<String> LYRIC_FORMATS = Set.of("lrc", "txt");
     private static final long MAX_LYRICS_BYTES = 256L * 1024;
     private static final int MAX_DURATION_MS = 24 * 60 * 60 * 1000;
     private final SongMapper mapper;
@@ -114,6 +110,7 @@ public class SongServiceImpl implements SongService {
         if (!FORMATS.contains(extension)) throw new BizException(ErrorCode.SONG_FORMAT);
         if (request.getTitle() == null || request.getTitle().isBlank() || request.getTitle().length() > 128 || request.getArtist() != null && request.getArtist().length() > 128 || request.getAlbum() != null && request.getAlbum().length() > 128 || invalidDuration(request.getDurationMs())) throw new BizException(ErrorCode.PARAM);
         String lyrics = readLyrics(request);
+        String karaokeLyrics = readLyrics(request.getKaraokeLyricsFile(), request.getKaraokeLyricsText());
         MultipartFile albumCoverFile = request.getAlbumCoverFile() == null ? request.getCoverFile() : request.getAlbumCoverFile();
         CoverPayload albumCover = readCover(albumCoverFile);
         CoverPayload songCover = readCover(request.getSongCoverFile());
@@ -142,7 +139,21 @@ public class SongServiceImpl implements SongService {
             String albumArtist = blankToNull(request.getNewAlbumArtist());
             Album album = albumService.resolveForUpload(request.getAlbumId(), albumName, albumArtist,
                     albumCover == null ? null : albumCover.hash(), albumCover == null ? null : albumCover.format());
-            Song song = new Song(); song.setHash(hash); song.setTitle(request.getTitle().trim()); song.setArtist(blankToNull(request.getArtist())); song.setAlbumId(album == null ? null : album.getId()); song.setAlbum(album == null ? null : album.getName()); song.setLyrics(lyrics); song.setHasLyrics(lyrics != null); song.setCoverHash(songCover == null ? null : songCover.hash()); song.setCoverFormat(songCover == null ? null : songCover.format()); song.setDurationMs(request.getDurationMs()); song.setFormat(extension); song.setFileSize(file.getSize()); song.setUploaderId(userId);
+            Song song = new Song();
+            song.setHash(hash);
+            song.setTitle(request.getTitle().trim());
+            song.setArtist(blankToNull(request.getArtist()));
+            song.setAlbumId(album == null ? null : album.getId());
+            song.setAlbum(album == null ? null : album.getName());
+            song.setLyrics(lyrics);
+            song.setKaraokeLyrics(karaokeLyrics);
+            song.setHasLyrics(lyrics != null || karaokeLyrics != null);
+            song.setCoverHash(songCover == null ? null : songCover.hash());
+            song.setCoverFormat(songCover == null ? null : songCover.format());
+            song.setDurationMs(request.getDurationMs());
+            song.setFormat(extension);
+            song.setFileSize(file.getSize());
+            song.setUploaderId(userId);
             song.setDeleted(0);
             Song deletedSong = mapper.selectDeletedByHash(hash);
             if (deletedSong != null) {
@@ -168,10 +179,17 @@ public class SongServiceImpl implements SongService {
     public SongResponse update(Long id, SongUpdateRequest request) {
         Song song = require(id);
         if (request.getTitle() == null || request.getTitle().isBlank() || request.getTitle().length() > 128 || request.getArtist() != null && request.getArtist().length() > 128 || invalidDuration(request.getDurationMs())) throw new BizException(ErrorCode.PARAM);
-        if (request.getLyricsFile() != null || request.getLyricsText() != null) {
-            String lyrics = readLyrics(request.getLyricsFile(), request.getLyricsText());
-            song.setLyrics(lyrics); song.setHasLyrics(lyrics != null);
-        }
+        // The entity query intentionally omits large lyric columns; reload both so a partial edit
+        // can preserve the untouched format and keep has_lyrics accurate.
+        String lyrics = mapper.selectLyrics(id);
+        String karaokeLyrics = mapper.selectKaraokeLyrics(id);
+        if (hasLyricsUpdate(request.getLyricsFile(), request.getLyricsText(), request.getClearLyrics()))
+            lyrics = updateLyrics(request.getLyricsFile(), request.getLyricsText(), request.getClearLyrics());
+        if (hasLyricsUpdate(request.getKaraokeLyricsFile(), request.getKaraokeLyricsText(), request.getClearKaraokeLyrics()))
+            karaokeLyrics = updateLyrics(request.getKaraokeLyricsFile(), request.getKaraokeLyricsText(), request.getClearKaraokeLyrics());
+        song.setLyrics(lyrics);
+        song.setKaraokeLyrics(karaokeLyrics);
+        song.setHasLyrics(lyrics != null || karaokeLyrics != null);
         if (request.getFile() != null && !request.getFile().isEmpty()) {
             MultipartFile file = request.getFile();
             if (file.getSize() > maxAudioSize.toBytes()) throw new BizException(ErrorCode.SONG_UPLOAD_SIZE);
@@ -226,13 +244,15 @@ public class SongServiceImpl implements SongService {
         song.setTitle(request.getTitle().trim()); song.setArtist(blankToNull(request.getArtist()));
         if (request.getDurationMs() != null) song.setDurationMs(request.getDurationMs());
         mapper.updateById(song);
+        mapper.updateLyrics(id, lyrics, karaokeLyrics, lyrics != null || karaokeLyrics != null);
         return response(song);
     }
     @Override @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void delete(Long id) { require(id); mapper.deleteById(id); }
     public SongLyricsResponse lyrics(Long songId) {
         require(songId);
-        return new SongLyricsResponse(songId, mapper.selectLyrics(songId));
+        return new SongLyricsResponse(songId, mapper.selectLyrics(songId),
+                mapper.selectKaraokeLyrics(songId));
     }
     public SongCoverResponse cover(Long songId) {
         Song song = require(songId);
@@ -282,6 +302,16 @@ public class SongServiceImpl implements SongService {
     private String readLyrics(SongUploadRequest request) {
         return readLyrics(request.getLyricsFile(), request.getLyricsText());
     }
+    private boolean hasLyricsUpdate(MultipartFile file, String text, Boolean clear) {
+        return file != null || text != null || Boolean.TRUE.equals(clear);
+    }
+    private String updateLyrics(MultipartFile file, String text, Boolean clear) {
+        if (Boolean.TRUE.equals(clear)) {
+            if (file != null || text != null && !text.isBlank()) throw new BizException(ErrorCode.PARAM);
+            return null;
+        }
+        return readLyrics(file, text);
+    }
     private String readLyrics(MultipartFile file, String lyricsText) {
         String text = blankToNull(lyricsText);
         if (file != null && text != null) throw new BizException(ErrorCode.PARAM);
@@ -289,15 +319,7 @@ public class SongServiceImpl implements SongService {
             if (text != null && text.getBytes(StandardCharsets.UTF_8).length > MAX_LYRICS_BYTES) throw new BizException(ErrorCode.SONG_LYRICS_SIZE);
             return text;
         }
-        if (file.isEmpty() || !LYRIC_FORMATS.contains(extension(file))) throw new BizException(ErrorCode.SONG_LYRICS_FORMAT);
-        if (file.getSize() > MAX_LYRICS_BYTES) throw new BizException(ErrorCode.SONG_LYRICS_SIZE);
-        try {
-            byte[] bytes = file.getBytes();
-            if (bytes.length > MAX_LYRICS_BYTES) throw new BizException(ErrorCode.SONG_LYRICS_SIZE);
-            String decoded = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString();
-            return blankToNull(decoded.startsWith("\uFEFF") ? decoded.substring(1) : decoded);
-        } catch (CharacterCodingException ex) { throw new BizException(ErrorCode.SONG_LYRICS_FORMAT); }
-        catch (java.io.IOException ex) { throw new BizException(ErrorCode.SONG_STORAGE); }
+        return blankToNull(LyricsFiles.readLyrics(file));
     }
     private AudioPayload storeAudio(MultipartFile file, Path directory) throws java.io.IOException, NoSuchAlgorithmException {
         Path temporary = Files.createTempFile(directory, "replace-", ".tmp");

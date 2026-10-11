@@ -1,4 +1,5 @@
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QHttpMultiPart>
@@ -7,6 +8,7 @@
 #include <algorithm>
 
 #include "AppController.h"
+#include "utils/LyricsParser.h"
 
 namespace {
 void appendTextPart(QHttpMultiPart* parts, const QString& name, const QString& value) {
@@ -122,25 +124,99 @@ void AppController::inspectAudio(const QString& audioUrl, const QString& request
     m_metadataReader.inspect(audioUrl, requestId);
 }
 
-QVariantMap AppController::findLyricsForAudio(const QString& audioUrl) const {
+QStringList AppController::lyricsFilesInDirectory(const QString& directory) {
+    const QString root = QDir::cleanPath(QFileInfo(directory).absoluteFilePath());
+    const auto cached = m_lyricsFileIndex.constFind(root);
+    if (cached != m_lyricsFileIndex.cend()) return cached.value();
+
+    QStringList files;
+    if (QFileInfo(root).isDir()) {
+        QDirIterator iterator(root, QDir::Files | QDir::NoDotAndDotDot,
+                              QDirIterator::Subdirectories);
+        while (iterator.hasNext()) files.append(iterator.next());
+        files.erase(std::remove_if(files.begin(), files.end(), [](const QString& path) {
+                        const QString suffix = QFileInfo(path).suffix();
+                        return suffix.compare(QStringLiteral("lrc"), Qt::CaseInsensitive) != 0 &&
+                               suffix.compare(QStringLiteral("txt"), Qt::CaseInsensitive) != 0;
+                    }), files.end());
+        std::stable_sort(files.begin(), files.end(), [](const QString& left, const QString& right) {
+            const bool leftLrc = QFileInfo(left).suffix().compare(QStringLiteral("lrc"), Qt::CaseInsensitive) == 0;
+            const bool rightLrc = QFileInfo(right).suffix().compare(QStringLiteral("lrc"), Qt::CaseInsensitive) == 0;
+            return leftLrc && !rightLrc;
+        });
+    }
+    m_lyricsFileIndex.insert(root, files);
+    return files;
+}
+
+QVariantMap AppController::findLyricsForAudio(const QString& audioUrl) {
     const QString audioPath = QUrl(audioUrl).toLocalFile();
     const QFileInfo audioInfo(audioPath);
     if (!audioInfo.isFile())
         return {{"found", false}, {"message", QStringLiteral("无法读取所选音频目录")}};
     const QString stem = audioInfo.completeBaseName();
-    const QFileInfoList files =
-        QDir(audioInfo.absolutePath()).entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
-    for (const QString& suffix : {QStringLiteral("lrc"), QStringLiteral("txt")}) {
-        for (const QFileInfo& file : files) {
-            if (file.suffix().compare(suffix, Qt::CaseInsensitive) == 0 &&
-                QString::compare(file.completeBaseName(), stem, Qt::CaseInsensitive) == 0) {
-                return {{"found", true},
-                        {"url", QUrl::fromLocalFile(file.absoluteFilePath()).toString()},
-                        {"name", file.fileName()}};
+    const bool useAudioDirectoryForLine = lineLyricsDirectory().isEmpty();
+    const bool useAudioDirectoryForKaraoke = karaokeLyricsDirectory().isEmpty();
+    const QString lineRoot = useAudioDirectoryForLine ? audioInfo.absolutePath()
+                                                       : lineLyricsDirectory();
+    const QString karaokeRoot = useAudioDirectoryForKaraoke ? audioInfo.absolutePath()
+                                                             : karaokeLyricsDirectory();
+    const auto emptyMatch = [] { return QVariantMap{{"found", false}}; };
+    QVariantMap lineMatch = emptyMatch();
+    QVariantMap karaokeMatch = emptyMatch();
+    const auto inspectCandidates = [this, &stem](const QString& root, bool useAudioDirectory,
+                                                 bool wantKaraoke, QVariantMap& match) {
+        QStringList candidates;
+        QStringList directoryFiles;
+        if (useAudioDirectory) {
+            const QFileInfoList entries = QDir(root).entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+            for (const QFileInfo& entry : entries) {
+                if (entry.suffix().compare(QStringLiteral("lrc"), Qt::CaseInsensitive) == 0 ||
+                    entry.suffix().compare(QStringLiteral("txt"), Qt::CaseInsensitive) == 0)
+                    directoryFiles.append(entry.absoluteFilePath());
             }
+        } else {
+            directoryFiles = lyricsFilesInDirectory(root);
         }
-    }
-    return {{"found", false}, {"message", QStringLiteral("未找到同名歌词文件")}};
+        for (const QString& path : directoryFiles) {
+            const QFileInfo file(path);
+            if (QString::compare(file.completeBaseName(), stem, Qt::CaseInsensitive) == 0)
+                candidates.append(path);
+        }
+        std::stable_sort(candidates.begin(), candidates.end(), [](const QString& left,
+                                                                  const QString& right) {
+            return QFileInfo(left).suffix().compare(QStringLiteral("lrc"), Qt::CaseInsensitive) == 0 &&
+                   QFileInfo(right).suffix().compare(QStringLiteral("lrc"), Qt::CaseInsensitive) != 0;
+        });
+        for (const QString& path : candidates) {
+            const QString text = readLyricsFile(QUrl::fromLocalFile(path).toString());
+            if (text.isEmpty() || LyricsParser::hasKaraokeTimestamps(text) != wantKaraoke) continue;
+            const QFileInfo file(path);
+            match = {{"found", true},
+                     {"url", QUrl::fromLocalFile(path).toString()},
+                     {"name", file.fileName()},
+                     {"text", text}};
+            return;
+        }
+    };
+    inspectCandidates(lineRoot, useAudioDirectoryForLine, false, lineMatch);
+    inspectCandidates(karaokeRoot, useAudioDirectoryForKaraoke, true, karaokeMatch);
+    return {{"found", lineMatch.value("found").toBool() || karaokeMatch.value("found").toBool()},
+            {"line", lineMatch},
+            {"karaoke", karaokeMatch}};
+}
+
+QString AppController::classifyLyrics(const QString& text) const {
+    return LyricsParser::hasKaraokeTimestamps(text) ? QStringLiteral("karaoke")
+                                                    : QStringLiteral("line");
+}
+
+QVariantList AppController::parseLyrics(const QString& text) const {
+    return LyricsParser::parse(text);
+}
+
+int AppController::countLikelyCreditLines(const QString& text) const {
+    return LyricsParser::countLikelyCreditLines(text);
 }
 
 QString AppController::readLyricsFile(const QString& lyricsUrl) const {
@@ -211,6 +287,54 @@ void AppController::updateSong(qint64 id, const QString& audioUrl, const QString
     if (lyricsUrl.isEmpty()) appendTextPart(parts, "lyricsText", lyrics);
     if (!appendFilePart(parts, "file", audioUrl) ||
         !appendFilePart(parts, "lyricsFile", lyricsUrl) ||
+        !appendFilePart(parts, "albumCoverFile", coverUrl)) {
+        delete parts;
+        setError(QStringLiteral("选择的文件无法读取"));
+        return;
+    }
+    const bool albumCoverChanged = !coverUrl.isEmpty();
+    m_api.putUpload("api/songs/" + QString::number(id), parts,
+                    [this, id, albumCoverChanged](const QJsonValue& value) {
+                        invalidateCoverCache(albumCoverChanged ? 0 : id);
+                        const QJsonObject updatedSong = value.toObject();
+                        if (!updatedSong.isEmpty()) cacheSong(updatedSong);
+                        emit infoMessage(QStringLiteral("歌曲已更新"));
+                        searchSongs(m_session.songs.keyword);
+                        refreshAlbums();
+                        emit songSaved();
+                    });
+}
+
+void AppController::updateSongWithLyrics(qint64 id, const QString& audioUrl,
+                                         const QString& title, const QString& artist,
+                                         qint64 albumId, const QString& albumName,
+                                         const QString& newAlbumName,
+                                         const QVariantMap& lyricChanges,
+                                         const QString& coverUrl) {
+    if (!admin()) {
+        setError(QStringLiteral("只有管理员可以编辑歌曲"));
+        return;
+    }
+    auto* parts = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+    appendTextPart(parts, "title", title);
+    appendTextPart(parts, "artist", artist);
+    appendTextPart(parts, "albumId", QString::number(albumId));
+    if (!newAlbumName.trimmed().isEmpty())
+        appendTextPart(parts, "newAlbumName", newAlbumName.trimmed());
+    else if (!albumName.isEmpty())
+        appendTextPart(parts, "albumName", albumName);
+
+    const auto appendLyricsChange = [parts, &lyricChanges](const QString& textField,
+                                                           const QString& clearField) {
+        if (lyricChanges.value(clearField).toBool()) {
+            appendTextPart(parts, clearField, QStringLiteral("true"));
+        } else if (lyricChanges.contains(textField)) {
+            appendTextPart(parts, textField, lyricChanges.value(textField).toString());
+        }
+    };
+    appendLyricsChange(QStringLiteral("lyricsText"), QStringLiteral("clearLyrics"));
+    appendLyricsChange(QStringLiteral("karaokeLyricsText"), QStringLiteral("clearKaraokeLyrics"));
+    if (!appendFilePart(parts, "file", audioUrl) ||
         !appendFilePart(parts, "albumCoverFile", coverUrl)) {
         delete parts;
         setError(QStringLiteral("选择的文件无法读取"));

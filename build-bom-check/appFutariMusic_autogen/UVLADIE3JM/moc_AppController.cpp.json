@@ -1,0 +1,2118 @@
+{
+    "classes": [
+        {
+            "className": "AppController",
+            "lineNumber": 25,
+            "methods": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "username",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "password",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 33,
+                    "name": "login",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "username",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "nickname",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "password",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 34,
+                    "name": "registerAccount",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 35,
+                    "name": "logout",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 36,
+                    "name": "clearError",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 37,
+                    "name": "refreshAll",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "keyword",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 38,
+                    "name": "searchSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 39,
+                    "name": "loadMoreSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "keyword",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 40,
+                    "name": "refreshAlbums",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 41,
+                    "isCloned": true,
+                    "name": "refreshAlbums",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 42,
+                    "name": "refreshUploadedSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 43,
+                    "name": "loadMoreUploadedSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "metadata",
+                            "type": "QVariantMap"
+                        }
+                    ],
+                    "index": 44,
+                    "name": "enqueueUpload",
+                    "returnType": "QString"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "song",
+                            "type": "QVariantMap"
+                        }
+                    ],
+                    "index": 45,
+                    "name": "enqueueDownload",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "path",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 46,
+                    "name": "openLocalFolder",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 47,
+                    "name": "clearSongCache",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "artist",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 48,
+                    "name": "searchAlbumMatches",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "audioUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "requestId",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 49,
+                    "name": "inspectAudio",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "audioUrl",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 50,
+                    "name": "findLyricsForAudio",
+                    "returnType": "QVariantMap"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "lyricsUrl",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 51,
+                    "name": "readLyricsFile",
+                    "returnType": "QString"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "text",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 52,
+                    "name": "classifyLyrics",
+                    "returnType": "QString"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "text",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 53,
+                    "name": "parseLyrics",
+                    "returnType": "QVariantList"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "text",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 54,
+                    "name": "countLikelyCreditLines",
+                    "returnType": "int"
+                },
+                {
+                    "access": "public",
+                    "index": 55,
+                    "name": "refreshRooms",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 56,
+                    "name": "loadMoreRooms",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 57,
+                    "name": "createRoom",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 58,
+                    "name": "joinRoom",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 59,
+                    "name": "leaveRoom",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 60,
+                    "name": "leaveRoomBeforeClose",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "roomId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 61,
+                    "name": "canDeleteRoom",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "roomId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 62,
+                    "name": "deleteRoom",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 63,
+                    "name": "refreshRoomState",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "memberId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "enabled",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 64,
+                    "name": "setController",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "song",
+                            "type": "QVariantMap"
+                        }
+                    ],
+                    "index": 65,
+                    "name": "playSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "index": 66,
+                    "name": "playSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 67,
+                    "name": "togglePlayback",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "positionMs",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 68,
+                    "name": "seek",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 69,
+                    "name": "nextSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "mode",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 70,
+                    "name": "setPlaybackMode",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "beforeId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 71,
+                    "name": "moveQueueBefore",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 72,
+                    "name": "previousSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 73,
+                    "name": "addToQueue",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 74,
+                    "name": "addToLocalQueue",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 75,
+                    "name": "addToRoomQueue",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "index": 76,
+                    "name": "addSongsToQueue",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "index": 77,
+                    "name": "addSongsToLocalQueue",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "song",
+                            "type": "QVariantMap"
+                        }
+                    ],
+                    "index": 78,
+                    "name": "playNext",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 79,
+                    "name": "toggleFavorite",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 80,
+                    "name": "createPlaylistWithSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "index": 81,
+                    "name": "createPlaylistWithSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "index",
+                            "type": "int"
+                        },
+                        {
+                            "name": "direction",
+                            "type": "int"
+                        }
+                    ],
+                    "index": 82,
+                    "name": "moveQueueSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "index",
+                            "type": "int"
+                        }
+                    ],
+                    "index": 83,
+                    "name": "removeQueueSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "index": 84,
+                    "name": "removeQueueSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 85,
+                    "name": "refreshPartners",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "keyword",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 86,
+                    "name": "searchUsers",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 87,
+                    "name": "loadMoreUsers",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 88,
+                    "name": "addPartner",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 89,
+                    "name": "removePartner",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 90,
+                    "name": "invitePartner",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 91,
+                    "name": "refreshInvites",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "accept",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 92,
+                    "name": "respondInvite",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 93,
+                    "name": "refreshPlaylists",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 94,
+                    "name": "createPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "description",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "coverUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "server",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 95,
+                    "name": "updatePlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        },
+                        {
+                            "name": "server",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 96,
+                    "name": "addSongsToPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 97,
+                    "name": "addSongToPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 98,
+                    "name": "refreshServerPlaylists",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 99,
+                    "name": "createServerPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 100,
+                    "name": "addSongToServerPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "server",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 101,
+                    "name": "deletePlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "server",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 102,
+                    "name": "removeSongFromPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        },
+                        {
+                            "name": "server",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 103,
+                    "name": "removeSongsFromPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "playlistId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        },
+                        {
+                            "name": "server",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 104,
+                    "name": "reorderPlaylist",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 105,
+                    "name": "loadLyrics",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 106,
+                    "name": "songForId",
+                    "returnType": "QVariantMap"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "audioUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "title",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "artist",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "albumId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "newAlbumName",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "lyrics",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "lyricsUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "coverUrl",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 107,
+                    "name": "uploadSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "audioUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "title",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "artist",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "albumId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "albumName",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "newAlbumName",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "lyrics",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "lyricsUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "coverUrl",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 108,
+                    "name": "updateSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "audioUrl",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "title",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "artist",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "albumId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "albumName",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "newAlbumName",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "lyricChanges",
+                            "type": "QVariantMap"
+                        },
+                        {
+                            "name": "coverUrl",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 109,
+                    "name": "updateSongWithLyrics",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 110,
+                    "name": "deleteSong",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songIds",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "index": 111,
+                    "name": "deleteSongs",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "audioUrl",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 112,
+                    "name": "guessTrackMetadata",
+                    "returnType": "QVariantList"
+                },
+                {
+                    "access": "public",
+                    "index": 113,
+                    "name": "refreshAdminUsers",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 114,
+                    "name": "loadMoreAdminUsers",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "upload",
+                            "type": "bool"
+                        },
+                        {
+                            "name": "serverPlaylist",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 115,
+                    "name": "updatePermissions",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "role",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 116,
+                    "name": "updateRole",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "password",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 117,
+                    "name": "resetPassword",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "id",
+                            "type": "qint64"
+                        }
+                    ],
+                    "index": 118,
+                    "name": "kickUser",
+                    "returnType": "void"
+                }
+            ],
+            "object": true,
+            "properties": [
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 0,
+                    "name": "authenticated",
+                    "notify": "sessionChanged",
+                    "read": "authenticated",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 1,
+                    "name": "autoLogin",
+                    "notify": "autoLoginChanged",
+                    "read": "autoLogin",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false,
+                    "write": "setAutoLogin"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 2,
+                    "name": "username",
+                    "notify": "sessionChanged",
+                    "read": "username",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 3,
+                    "name": "serverUrl",
+                    "notify": "serverUrlChanged",
+                    "read": "serverUrl",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false,
+                    "write": "setServerUrl"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 4,
+                    "name": "darkMode",
+                    "notify": "darkModeChanged",
+                    "read": "darkMode",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false,
+                    "write": "setDarkMode"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 5,
+                    "name": "errorMessage",
+                    "notify": "errorMessageChanged",
+                    "read": "errorMessage",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 6,
+                    "name": "songs",
+                    "notify": "songsChanged",
+                    "read": "songs",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 7,
+                    "name": "albums",
+                    "notify": "albumsChanged",
+                    "read": "albums",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 8,
+                    "name": "albumMatches",
+                    "notify": "albumMatchesChanged",
+                    "read": "albumMatches",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 9,
+                    "name": "transferTasks",
+                    "notify": "transferTasksChanged",
+                    "read": "transferTasks",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 10,
+                    "name": "uploadedSongs",
+                    "notify": "uploadedSongsChanged",
+                    "read": "uploadedSongs",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 11,
+                    "name": "hasMoreUploadedSongs",
+                    "notify": "uploadedSongsChanged",
+                    "read": "hasMoreUploadedSongs",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 12,
+                    "name": "downloadDirectory",
+                    "notify": "settingsChanged",
+                    "read": "downloadDirectory",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false,
+                    "write": "setDownloadDirectory"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 13,
+                    "name": "lineLyricsDirectory",
+                    "notify": "settingsChanged",
+                    "read": "lineLyricsDirectory",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false,
+                    "write": "setLineLyricsDirectory"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 14,
+                    "name": "karaokeLyricsDirectory",
+                    "notify": "settingsChanged",
+                    "read": "karaokeLyricsDirectory",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false,
+                    "write": "setKaraokeLyricsDirectory"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 15,
+                    "name": "lyricsDisplayMode",
+                    "notify": "settingsChanged",
+                    "read": "lyricsDisplayMode",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false,
+                    "write": "setLyricsDisplayMode"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 16,
+                    "name": "cacheEnabled",
+                    "notify": "settingsChanged",
+                    "read": "cacheEnabled",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false,
+                    "write": "setCacheEnabled"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 17,
+                    "name": "cacheDirectory",
+                    "notify": "settingsChanged",
+                    "read": "cacheDirectory",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false,
+                    "write": "setCacheDirectory"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 18,
+                    "name": "cacheUsageBytes",
+                    "notify": "settingsChanged",
+                    "read": "cacheUsageBytes",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "qint64",
+                    "user": false
+                },
+                {
+                    "constant": true,
+                    "designable": true,
+                    "final": false,
+                    "index": 19,
+                    "name": "transferManager",
+                    "read": "transferManager",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "TransferManager*",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 20,
+                    "name": "hasMoreSongs",
+                    "notify": "songsChanged",
+                    "read": "hasMoreSongs",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 21,
+                    "name": "songsLoading",
+                    "notify": "songsChanged",
+                    "read": "songsLoading",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 22,
+                    "name": "minimizeToTrayOnClose",
+                    "notify": "settingsChanged",
+                    "read": "minimizeToTrayOnClose",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false,
+                    "write": "setMinimizeToTrayOnClose"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 23,
+                    "name": "savePlaybackQueue",
+                    "notify": "settingsChanged",
+                    "read": "savePlaybackQueue",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false,
+                    "write": "setSavePlaybackQueue"
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 24,
+                    "name": "rooms",
+                    "notify": "roomsChanged",
+                    "read": "rooms",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 25,
+                    "name": "hasMoreRooms",
+                    "notify": "roomsChanged",
+                    "read": "hasMoreRooms",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 26,
+                    "name": "partners",
+                    "notify": "partnersChanged",
+                    "read": "partners",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 27,
+                    "name": "userResults",
+                    "notify": "userResultsChanged",
+                    "read": "userResults",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 28,
+                    "name": "hasMoreUsers",
+                    "notify": "userResultsChanged",
+                    "read": "hasMoreUsers",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 29,
+                    "name": "playlists",
+                    "notify": "playlistsChanged",
+                    "read": "playlists",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 30,
+                    "name": "serverPlaylists",
+                    "notify": "serverPlaylistsChanged",
+                    "read": "serverPlaylists",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 31,
+                    "name": "invites",
+                    "notify": "invitesChanged",
+                    "read": "invites",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 32,
+                    "name": "roomState",
+                    "notify": "roomStateChanged",
+                    "read": "roomState",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantMap",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 33,
+                    "name": "localQueue",
+                    "notify": "localQueueChanged",
+                    "read": "localQueue",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 34,
+                    "name": "favoriteSongIds",
+                    "notify": "playlistsChanged",
+                    "read": "favoriteSongIds",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 35,
+                    "name": "favoriteBusy",
+                    "notify": "playlistsChanged",
+                    "read": "favoriteBusy",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 36,
+                    "name": "playlistCreationBusy",
+                    "notify": "playlistCreationBusyChanged",
+                    "read": "playlistCreationBusy",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 37,
+                    "name": "lyrics",
+                    "notify": "lyricsChanged",
+                    "read": "lyrics",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantMap",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 38,
+                    "name": "canUpload",
+                    "notify": "sessionChanged",
+                    "read": "canUpload",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 39,
+                    "name": "canManageServerPlaylist",
+                    "notify": "sessionChanged",
+                    "read": "canManageServerPlaylist",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 40,
+                    "name": "admin",
+                    "notify": "sessionChanged",
+                    "read": "admin",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 41,
+                    "name": "adminUsers",
+                    "notify": "adminUsersChanged",
+                    "read": "adminUsers",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantList",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 42,
+                    "name": "hasMoreAdminUsers",
+                    "notify": "adminUsersChanged",
+                    "read": "hasMoreAdminUsers",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 43,
+                    "name": "canControl",
+                    "notify": "roomStateChanged",
+                    "read": "canControl",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 44,
+                    "name": "roomOwner",
+                    "notify": "roomStateChanged",
+                    "read": "roomOwner",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 45,
+                    "name": "roomDeletionBusy",
+                    "notify": "roomDeletionBusyChanged",
+                    "read": "roomDeletionBusy",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 46,
+                    "name": "batchDeletionBusy",
+                    "notify": "songsChanged",
+                    "read": "batchDeletionBusy",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 47,
+                    "name": "covers",
+                    "notify": "coversChanged",
+                    "read": "covers",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QVariantMap",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 48,
+                    "name": "unreadInvites",
+                    "notify": "invitesChanged",
+                    "read": "unreadInvites",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "int",
+                    "user": false
+                },
+                {
+                    "constant": true,
+                    "designable": true,
+                    "final": false,
+                    "index": 49,
+                    "name": "player",
+                    "read": "player",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "AudioPlayer*",
+                    "user": false
+                },
+                {
+                    "constant": true,
+                    "designable": true,
+                    "final": false,
+                    "index": 50,
+                    "name": "coverCompletion",
+                    "read": "coverCompletion",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "CoverCompletionController*",
+                    "user": false
+                },
+                {
+                    "constant": true,
+                    "designable": true,
+                    "final": false,
+                    "index": 51,
+                    "name": "lyricsCompletion",
+                    "read": "lyricsCompletion",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "LyricsCompletionController*",
+                    "user": false
+                },
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 52,
+                    "name": "playbackMode",
+                    "notify": "playbackModeChanged",
+                    "read": "playbackMode",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false
+                }
+            ],
+            "qualifiedClassName": "AppController",
+            "signals": [
+                {
+                    "access": "public",
+                    "index": 0,
+                    "name": "playbackModeChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 1,
+                    "name": "sessionChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 2,
+                    "name": "autoLoginChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 3,
+                    "name": "serverUrlChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 4,
+                    "name": "darkModeChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 5,
+                    "name": "errorMessageChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 6,
+                    "name": "songsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 7,
+                    "name": "albumsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 8,
+                    "name": "albumMatchesChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 9,
+                    "name": "transferTasksChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 10,
+                    "name": "uploadedSongsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 11,
+                    "name": "settingsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 12,
+                    "name": "roomsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 13,
+                    "name": "partnersChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 14,
+                    "name": "userResultsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 15,
+                    "name": "playlistsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 16,
+                    "name": "serverPlaylistsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 17,
+                    "name": "invitesChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 18,
+                    "name": "roomStateChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 19,
+                    "name": "roomLeaveForCloseFinished",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 20,
+                    "name": "localQueueChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 21,
+                    "name": "lyricsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 22,
+                    "name": "roomDeletionBusyChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 23,
+                    "name": "coversChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 24,
+                    "name": "adminUsersChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "title",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "message",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 25,
+                    "name": "invitationArrived",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 26,
+                    "name": "openMessagesRequested",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "message",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 27,
+                    "name": "infoMessage",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 28,
+                    "name": "songSaved",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 29,
+                    "name": "songDeleted",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "requestId",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "metadata",
+                            "type": "QVariantMap"
+                        }
+                    ],
+                    "index": 30,
+                    "name": "audioMetadataReady",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 31,
+                    "name": "playlistCreationBusyChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "songId",
+                            "type": "qint64"
+                        },
+                        {
+                            "name": "added",
+                            "type": "bool"
+                        }
+                    ],
+                    "index": 32,
+                    "name": "playlistCreationFinished",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "AppController.h",
+    "outputRevision": 68
+}

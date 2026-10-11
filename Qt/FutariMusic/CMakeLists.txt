@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 project(FutariMusic VERSION 0.2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(QT_QML_NO_CACHEGEN ON)
 set(FUTARI_CLIENT_VERSION "0.1.1" CACHE STRING "Client version embedded in the executable")
 set(FUTARI_SERVER_COMPAT_VERSION "0.2.0" CACHE STRING "Server compatibility version embedded in the executable")
 set(FUTARI_WINDOWS_INSTALL_ARGUMENTS "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" CACHE STRING "Silent installer arguments for Windows update EXE packages")
@@ -34,6 +35,7 @@ qt_add_qml_module(appFutariMusic
         qml/components/SongRow.qml
         qml/components/BatchSongToolbar.qml
         qml/components/QueueDrawer.qml
+        qml/components/KaraokeLine.qml
         qml/components/SvgIcon.qml
         qml/components/FutariButton.qml
         qml/components/FutariToolButton.qml
@@ -56,6 +58,7 @@ qt_add_qml_module(appFutariMusic
         qml/pages/AdminPage.qml
         qml/pages/ManagementToolsPage.qml
         qml/pages/CoverCompletionDialog.qml
+        qml/pages/LyricsCompletionDialog.qml
         qml/pages/AccountPage.qml
         qml/pages/SongEditPage.qml
         qml/pages/TransferPage.qml
