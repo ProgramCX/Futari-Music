@@ -2,6 +2,7 @@
 #include <QRandomGenerator>
 
 #include "AppController.h"
+#include "utils/RoomSyncPolicy.h"
 
 void AppController::playSong(const QVariantMap& song) {
     const QJsonObject data = QJsonObject::fromVariantMap(song);
@@ -403,11 +404,14 @@ void AppController::loadLyrics(qint64 songId) {
                   });
 }
 
-void AppController::applyPlayback(const QJsonObject& playback, bool periodicSync) {
-    if (!m_session.roomId) return;
+void AppController::applyPlayback(const QJsonObject& playback) {
+    if (!m_session.roomId || playback.isEmpty() ||
+        RoomSyncPolicy::sameTimeline(m_session.appliedRoomPlayback, playback))
+        return;
     const qint64 songId = playback.value("currentSongId").toInteger();
     if (!songId) {
         m_player.stop();
+        m_session.appliedRoomPlayback = playback;
         return;
     }
     const QJsonObject song = findSong(songId);
@@ -416,7 +420,8 @@ void AppController::applyPlayback(const QJsonObject& playback, bool periodicSync
         m_api.request("GET", "api/songs/" + QString::number(songId), {},
                       [this, playback, roomId](const QJsonValue& value) {
                           if (m_session.roomId != roomId ||
-                              m_session.roomState.value("playback").toObject() != playback)
+                              !RoomSyncPolicy::sameTimeline(
+                                  m_session.roomState.value("playback").toObject(), playback))
                               return;
                           const QJsonObject song = value.toObject();
                           cacheSong(song);
@@ -431,19 +436,10 @@ void AppController::applyPlayback(const QJsonObject& playback, bool periodicSync
     if (playing)
         position += qMax<qint64>(0, QDateTime::currentMSecsSinceEpoch() + m_session.clockOffsetMs -
                                         playback.value("serverTimestamp").toInteger());
-    if (m_player.song().value("id").toLongLong() != songId)
-        m_player.playSong(song, position, playing);
-    else {
-        if (periodicSync && playing && m_player.playing() && !m_player.loading()) {
-            // Small clock differences are normal. Correct them without making FFmpeg seek every 15 seconds.
-            const qint64 driftMs = position - m_player.position();
-            m_player.setPlaybackRate(qAbs(driftMs) < 200
-                                         ? 1.0
-                                         : qBound(0.95, 1.0 + driftMs / 15000.0, 1.05));
-        } else if (!periodicSync) {
-            m_player.setPlaybackRate(1.0);
-            if (qAbs(m_player.position() - position) > 500) m_player.seek(position);
-        }
+    if (m_player.song().value("id").toLongLong() != songId) {
+        m_player.playSong(song, position, playing, true);
+    } else {
+        m_player.seek(position);
         if (playing && !m_player.playing())
             m_player.resume();
         else if (!playing) {
@@ -451,6 +447,7 @@ void AppController::applyPlayback(const QJsonObject& playback, bool periodicSync
             m_player.pause();
         }
     }
+    m_session.appliedRoomPlayback = playback;
 }
 
 bool AppController::isStalePlayback(const QJsonObject& playback) const {

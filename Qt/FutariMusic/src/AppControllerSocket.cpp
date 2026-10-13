@@ -1,4 +1,5 @@
 #include "AppController.h"
+#include "utils/RoomSyncPolicy.h"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -37,16 +38,12 @@ void AppController::handleSocketMessage(const QString& message) {
         receiveInvite(data);
         return;
     }
-    if (type == "PLAY" || type == "PAUSE" || type == "SEEK" || type == "NEXT" || type == "SYNC" ||
-        type == "PLAYBACK_MODE" || type == "TRACK_ENDED") {
+    if (RoomSyncPolicy::isPlaybackCommand(type) || type == "SYNC" || type == "PLAYBACK_MODE") {
         if (!m_session.roomId || isStalePlayback(data)) return;
         m_session.roomState.insert("playback", data);
         emit roomStateChanged();
-        // Periodic room sync must not repeatedly abandon a still-buffering seek.
-        if (type != "SYNC" || !m_player.loading() ||
-            data.value("status").toString() != "playing" ||
-            m_player.song().value("id").toLongLong() != data.value("currentSongId").toInteger())
-            applyPlayback(data, type == "SYNC");
+        // Periodic snapshots update the UI only; they must not seek or restart audio.
+        if (RoomSyncPolicy::isPlaybackCommand(type)) applyPlayback(data);
         return;
     }
     if (type == "PLAYLIST_UPDATE" || type == "MEMBER_JOIN" || type == "MEMBER_LEAVE" ||

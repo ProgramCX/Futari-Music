@@ -37,17 +37,18 @@ public:
     }
     bool playing() const { return m_player.playbackState() == QMediaPlayer::PlayingState; }
     bool loading() const { return m_loading; }
+    bool failed() const { return m_failed; }
     qreal bufferProgress() const { return m_bufferProgress; }
     QVariantList bufferedRanges() const;
     qreal volume() const { return m_output.volume(); }
     void setVolume(qreal volume);
-    void setPlaybackRate(qreal rate);
     QString cacheDirectory() const { return m_cacheDirectory; }
     bool cacheEnabled() const { return m_cacheEnabled; }
     void setCacheDirectory(const QString &directory);
     void setCacheEnabled(bool enabled);
     QStringList protectedCachePaths() const;
-    void playSong(const QJsonObject &song, qint64 positionMs = 0, bool autoPlay = true);
+    void playSong(const QJsonObject &song, qint64 positionMs = 0, bool autoPlay = true,
+                  bool advanceWhileLoading = false);
     void restoreSong(const QJsonObject &song, qint64 positionMs);
     Q_INVOKABLE void pause();
     Q_INVOKABLE void resume();
@@ -98,6 +99,9 @@ private:
     // 媒体加载完成前暂存用户最新 seek/play 意图；LoadedMedia 后统一应用。
     qint64 m_pendingPosition = 0;
     bool m_pendingPlay = false;
+    bool m_advanceWhileLoading = false;
+    bool m_failed = false;
+    QElapsedTimer m_pendingPositionClock;
 };
 
 #endif  // FUTARI_AUDIO_PLAYER_H

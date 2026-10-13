@@ -103,7 +103,11 @@ void AppController::setupSocket() {
         m_heartbeat.start();
         sendSocket("PING", {{"clientTime", QDateTime::currentMSecsSinceEpoch()}});
         refreshInvites();
-        if (m_session.roomId) refreshRoomState();
+        if (m_session.roomId) {
+            // Restore once after reconnect, including commands missed while disconnected.
+            m_session.appliedRoomPlayback = {};
+            refreshRoomState();
+        }
     });
     m_heartbeat.setInterval(20000);
     connect(&m_heartbeat, &QTimer::timeout, this,

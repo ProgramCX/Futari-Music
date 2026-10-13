@@ -102,7 +102,11 @@ public class RoomServiceImpl implements RoomService {
         controllerIds.add(room.getOwnerId());
         if (rawControllers != null)
             rawControllers.stream().map(Long::valueOf).filter(id -> !controllerIds.contains(id)).forEach(controllerIds::add);
-        return new RoomStateResponse(summary(room), playback(roomId), playlist(roomId), rawMembers == null ? List.of() : rawMembers.stream().map(Long::valueOf).map(users::require).map(users::response).toList(), controllerIds, System.currentTimeMillis());
+        List<Long> songIds = playlist(roomId);
+        return new RoomStateResponse(summary(room), playback(roomId), songIds,
+                songs.findAvailableByIds(songIds),
+                rawMembers == null ? List.of() : rawMembers.stream().map(Long::valueOf).map(users::require).map(users::response).toList(),
+                controllerIds, System.currentTimeMillis());
     }
 
     public RoomStateResponse current(Long userId) {

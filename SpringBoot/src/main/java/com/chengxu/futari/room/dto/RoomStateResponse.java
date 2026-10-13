@@ -1,6 +1,7 @@
 package com.chengxu.futari.room.dto;
 
 import com.chengxu.futari.user.dto.UserResponse;
+import com.chengxu.futari.song.dto.SongResponse;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,6 +12,7 @@ public class RoomStateResponse {
     private RoomResponse room;
     private PlaybackState playback;
     private List<Long> songIds;
+    private List<SongResponse> songs;
     private List<UserResponse> members;
     private List<Long> controllerIds;
     private Long serverTime;

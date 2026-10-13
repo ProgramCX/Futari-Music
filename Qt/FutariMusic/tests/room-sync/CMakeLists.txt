@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.21)
+project(RoomSyncRegression LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core)
+add_executable(roomSyncRegression main.cpp)
+target_link_libraries(roomSyncRegression PRIVATE Qt6::Core)
+enable_testing()
+add_test(NAME roomSyncRegression COMMAND roomSyncRegression)

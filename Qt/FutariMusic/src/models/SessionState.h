@@ -38,6 +38,12 @@ struct SessionState {
     QJsonArray serverPlaylists;
     QJsonArray invites;
     QJsonObject roomState;
+    QJsonObject appliedRoomPlayback;
+    // Older servers return room queue IDs without the matching song metadata.
+    QQueue<qint64> pendingRoomSongDetails;
+    QSet<qint64> requestedRoomSongDetails;
+    int roomSongDetailsInFlight = 0;
+    RequestScope roomSongDetailsRequests;
     QJsonObject lyrics;
     RequestScope lyricsRequests;
     // 个人队列只保存歌曲 ID；进入房间不改变它，退出房间恢复 savedLocalSong/Position。

@@ -347,7 +347,9 @@ private:
     void exitRoom();
     void sendSocket(const QString& type, const QJsonObject& data);
     void setRoomState(const QJsonObject& state);
-    void applyPlayback(const QJsonObject& playback, bool periodicSync = false);
+    void ensureRoomSongDetails(const QJsonArray& songIds);
+    void loadNextRoomSongDetails();
+    void applyPlayback(const QJsonObject& playback);
     void playLocalById(qint64 id);
     void publishQueue(const QJsonArray& ids);
     void removeSongsFromPlaybackQueue(const QSet<qint64>& songIds);

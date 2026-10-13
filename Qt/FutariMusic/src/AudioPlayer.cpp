@@ -90,6 +90,11 @@ AudioPlayer::AudioPlayer(ApiClient *api, QObject *parent) : QObject(parent), m_a
                 if ((status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia) &&
                     !m_initialMediaReady) {
                     m_initialMediaReady = true;
+                    // Room playback aligns once after initial loading, before play().
+                    // The guard excludes subsequent buffering; local playback has no running clock.
+                    if (m_pendingPlay && m_pendingPositionClock.isValid())
+                        m_pendingPosition += m_pendingPositionClock.elapsed();
+                    m_pendingPositionClock.invalidate();
                     m_player.setPosition(m_pendingPosition);
                     setLoading(false);
                     if (m_pendingPlay) m_player.play();
@@ -105,11 +110,17 @@ AudioPlayer::AudioPlayer(ApiClient *api, QObject *parent) : QObject(parent), m_a
                 }
             });
     connect(&m_player, &QMediaPlayer::errorOccurred, this,
-            [this](QMediaPlayer::Error, const QString &description) {
+            [this](QMediaPlayer::Error error, const QString &description) {
+                m_failed = true;
+                m_pendingPosition = m_player.position();
                 m_waitingForSeekProgress = false;
                 m_playRequested = false;
                 setLoading(false);
                 m_pendingPlay = false;
+                m_pendingPositionClock.invalidate();
+                qWarning() << "[audio player] playback failed" << "songId=" << m_song.value("id")
+                           << "error=" << error << "position=" << m_player.position()
+                           << "status=" << m_player.mediaStatus();
                 emit errorOccurred(description);
             });
     connect(&m_stream, &AudioStreamServer::bufferedRangesChanged, this, [this] {
@@ -184,12 +195,10 @@ void AudioPlayer::setVolume(qreal volume) {
     emit volumeChanged();
 }
 
-void AudioPlayer::setPlaybackRate(qreal rate) {
-    const qreal clamped = qBound(0.95, rate, 1.05);
-    if (!qFuzzyCompare(m_player.playbackRate(), clamped)) m_player.setPlaybackRate(clamped);
-}
-
 void AudioPlayer::restoreSong(const QJsonObject &song, qint64 positionMs) {
+    m_failed = false;
+    m_advanceWhileLoading = false;
+    m_pendingPositionClock.invalidate();
     // Restored selection is paused metadata; opening its source would fetch audio before play.
     m_stream.stop();
     m_streamingSourceActive = false;
@@ -206,8 +215,8 @@ void AudioPlayer::restoreSong(const QJsonObject &song, qint64 positionMs) {
     emit positionChanged();
 }
 
-void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool autoPlay) {
-    setPlaybackRate(1.0);
+void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool autoPlay,
+                           bool advanceWhileLoading) {
     const QString hash = song.value("hash").toString();
     const QString format = song.value("format").toString();
     if (hash.size() != 64 || !QRegularExpression(QStringLiteral("^[a-f0-9]{64}$")).match(hash).hasMatch() ||
@@ -229,6 +238,10 @@ void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool auto
     m_activePartialPath.clear();
     m_activePlaybackPath.clear();
     m_song = song;
+    m_failed = false;
+    m_advanceWhileLoading = advanceWhileLoading;
+    m_pendingPositionClock.invalidate();
+    if (autoPlay && advanceWhileLoading) m_pendingPositionClock.start();
     m_pendingPosition = qMax<qint64>(0, positionMs);
     m_pendingPlay = autoPlay;
     m_playRequested = autoPlay;
@@ -294,7 +307,9 @@ void AudioPlayer::loadFile(const QString &path, qint64 positionMs, bool autoPlay
 }
 
 void AudioPlayer::pause() {
-    setPlaybackRate(1.0);
+    if (!m_initialMediaReady && m_pendingPositionClock.isValid())
+        m_pendingPosition += m_pendingPositionClock.elapsed();
+    m_pendingPositionClock.invalidate();
     m_pendingPlay = false;
     m_playRequested = false;
     m_waitingForSeekProgress = false;
@@ -304,9 +319,10 @@ void AudioPlayer::pause() {
 
 void AudioPlayer::resume() {
     m_playRequested = true;
-    if (m_player.source().isEmpty() && !m_loading && !m_song.isEmpty()) {
-        playSong(m_song, m_pendingPosition);
+    if ((m_failed || m_player.source().isEmpty()) && !m_loading && !m_song.isEmpty()) {
+        playSong(m_song, m_pendingPosition, true, m_advanceWhileLoading);
     } else if (!m_initialMediaReady) {
+        if (!m_pendingPlay && m_advanceWhileLoading) m_pendingPositionClock.start();
         m_pendingPlay = true;
     } else {
         m_player.play();
@@ -314,8 +330,9 @@ void AudioPlayer::resume() {
 }
 
 void AudioPlayer::seek(qint64 positionMs) {
-    setPlaybackRate(1.0);
     m_pendingPosition = qMax<qint64>(0, positionMs);
+    if (!m_initialMediaReady && m_advanceWhileLoading && m_pendingPlay)
+        m_pendingPositionClock.start();
     if (m_player.source().isEmpty()) emit positionChanged();
     else if (m_initialMediaReady) {
         if (qAbs(m_player.position() - m_pendingPosition) < kSeekToleranceMs) return;
@@ -329,6 +346,9 @@ void AudioPlayer::seek(qint64 positionMs) {
 }
 
 void AudioPlayer::playLocalFile(const QString &path, const QString &title, const QString &artist) {
+    m_failed = false;
+    m_advanceWhileLoading = false;
+    m_pendingPositionClock.invalidate();
     const QFileInfo file(path);
     if (!file.isFile() || !file.isReadable()) {
         emit errorOccurred(QStringLiteral("本地歌曲文件不存在或无法读取"));
@@ -360,7 +380,9 @@ void AudioPlayer::playLocalFile(const QString &path, const QString &title, const
 }
 
 void AudioPlayer::stop() {
-    setPlaybackRate(1.0);
+    m_failed = false;
+    m_advanceWhileLoading = false;
+    m_pendingPositionClock.invalidate();
     m_stream.stop();
     m_streamingSourceActive = false;
     m_player.stop();
