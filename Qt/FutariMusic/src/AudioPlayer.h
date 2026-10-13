@@ -41,6 +41,7 @@ public:
     QVariantList bufferedRanges() const;
     qreal volume() const { return m_output.volume(); }
     void setVolume(qreal volume);
+    void setPlaybackRate(qreal rate);
     QString cacheDirectory() const { return m_cacheDirectory; }
     bool cacheEnabled() const { return m_cacheEnabled; }
     void setCacheDirectory(const QString &directory);

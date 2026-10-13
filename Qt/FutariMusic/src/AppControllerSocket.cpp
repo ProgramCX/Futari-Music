@@ -46,7 +46,7 @@ void AppController::handleSocketMessage(const QString& message) {
         if (type != "SYNC" || !m_player.loading() ||
             data.value("status").toString() != "playing" ||
             m_player.song().value("id").toLongLong() != data.value("currentSongId").toInteger())
-            applyPlayback(data);
+            applyPlayback(data, type == "SYNC");
         return;
     }
     if (type == "PLAYLIST_UPDATE" || type == "MEMBER_JOIN" || type == "MEMBER_LEAVE" ||

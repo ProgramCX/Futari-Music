@@ -184,6 +184,11 @@ void AudioPlayer::setVolume(qreal volume) {
     emit volumeChanged();
 }
 
+void AudioPlayer::setPlaybackRate(qreal rate) {
+    const qreal clamped = qBound(0.95, rate, 1.05);
+    if (!qFuzzyCompare(m_player.playbackRate(), clamped)) m_player.setPlaybackRate(clamped);
+}
+
 void AudioPlayer::restoreSong(const QJsonObject &song, qint64 positionMs) {
     // Restored selection is paused metadata; opening its source would fetch audio before play.
     m_stream.stop();
@@ -202,6 +207,7 @@ void AudioPlayer::restoreSong(const QJsonObject &song, qint64 positionMs) {
 }
 
 void AudioPlayer::playSong(const QJsonObject &song, qint64 positionMs, bool autoPlay) {
+    setPlaybackRate(1.0);
     const QString hash = song.value("hash").toString();
     const QString format = song.value("format").toString();
     if (hash.size() != 64 || !QRegularExpression(QStringLiteral("^[a-f0-9]{64}$")).match(hash).hasMatch() ||
@@ -288,6 +294,7 @@ void AudioPlayer::loadFile(const QString &path, qint64 positionMs, bool autoPlay
 }
 
 void AudioPlayer::pause() {
+    setPlaybackRate(1.0);
     m_pendingPlay = false;
     m_playRequested = false;
     m_waitingForSeekProgress = false;
@@ -307,6 +314,7 @@ void AudioPlayer::resume() {
 }
 
 void AudioPlayer::seek(qint64 positionMs) {
+    setPlaybackRate(1.0);
     m_pendingPosition = qMax<qint64>(0, positionMs);
     if (m_player.source().isEmpty()) emit positionChanged();
     else if (m_initialMediaReady) {
@@ -352,6 +360,7 @@ void AudioPlayer::playLocalFile(const QString &path, const QString &title, const
 }
 
 void AudioPlayer::stop() {
+    setPlaybackRate(1.0);
     m_stream.stop();
     m_streamingSourceActive = false;
     m_player.stop();

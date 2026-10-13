@@ -403,7 +403,7 @@ void AppController::loadLyrics(qint64 songId) {
                   });
 }
 
-void AppController::applyPlayback(const QJsonObject& playback) {
+void AppController::applyPlayback(const QJsonObject& playback, bool periodicSync) {
     if (!m_session.roomId) return;
     const qint64 songId = playback.value("currentSongId").toInteger();
     if (!songId) {
@@ -434,7 +434,16 @@ void AppController::applyPlayback(const QJsonObject& playback) {
     if (m_player.song().value("id").toLongLong() != songId)
         m_player.playSong(song, position, playing);
     else {
-        if (qAbs(m_player.position() - position) > 500) m_player.seek(position);
+        if (periodicSync && playing && m_player.playing() && !m_player.loading()) {
+            // Small clock differences are normal. Correct them without making FFmpeg seek every 15 seconds.
+            const qint64 driftMs = position - m_player.position();
+            m_player.setPlaybackRate(qAbs(driftMs) < 200
+                                         ? 1.0
+                                         : qBound(0.95, 1.0 + driftMs / 15000.0, 1.05));
+        } else if (!periodicSync) {
+            m_player.setPlaybackRate(1.0);
+            if (qAbs(m_player.position() - position) > 500) m_player.seek(position);
+        }
         if (playing && !m_player.playing())
             m_player.resume();
         else if (!playing) {
